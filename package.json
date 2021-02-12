@@ -1,24 +1,37 @@
 {
   "name": "cleverfood",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Unloading and normalize of historical data from amoCRM",
+  "main": "./bin/run.js",
   "scripts": {
-    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Lev Levin",
-  "license": "ISC",
-  "dependencies": {
-    "amocrm-js": "^2.0.8"
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slv-srg/cleverfood.git"
   },
+  "keywords": [
+    "javascript",
+    "node.js",
+    "amocrm"
+  ],
+  "author": "Lev Levin, Sergey Solovyov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/slv-srg/cleverfood/issues"
+  },
+  "homepage": "https://github.com/slv-srg/cleverfood#readme",
   "devDependencies": {
+    "eslint": "^7.19.0",
+    "eslint-config-airbnb": "^18.2.1",
+    "eslint-plugin-import": "^2.22.1",
     "ngrok": "^3.4.0"
   },
-  "nodemonConfig": {
-    "ignore": [
-      "*.json"
-    ],
-    "delay": "2500"
+  "dependencies": {
+    "amocrm-js": "^2.0.9",
+    "lodash": "^4.17.20",
+    "moment": "^2.29.1",
+    "node-schedule": "^2.0.0"
   }
 }
