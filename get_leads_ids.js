@@ -66,13 +66,10 @@ crm.request
     // Сделки на определённом шаге воронки
     filter: {
       statuses: [
-        // Hlavni pipeline
         { pipeline_id: hlavni_pipeline_id, status_id: crm_status_finished },
         { pipeline_id: hlavni_pipeline_id, status_id: 33478963 }, // kvalifikace
         { pipeline_id: hlavni_pipeline_id, status_id: 33479020 }, // vyroba
         { pipeline_id: hlavni_pipeline_id, status_id: 33478966 }, // Čeká nebo přerušil
-
-        // Demo pipeline
         { pipeline_id: demo_pipeline_id, status_id: crm_status_finished },
         { pipeline_id: demo_pipeline_id, status_id: 33458329 }, // kvalifikace
         { pipeline_id: demo_pipeline_id, status_id: 33458332 }, // vyroba

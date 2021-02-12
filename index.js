@@ -148,12 +148,6 @@ function get_row(lead_id) {
             (acc, event) => [event.created_at, ...acc],
             []
           )
-          // console.log('AFTER') // сделка перешла в статус crm_status_vyroba
-          // after.forEach(created_at => {
-          //   const d = new Date(created_at * 1000)
-          //   console.log(created_at + ': ' + d.getSqlFormat() + ' ' + d.getHours() + ':' + d.getMinutes())
-          // })
-
           crm.request
             .get('/api/v4/events', {
               limit: 250,
@@ -227,10 +221,6 @@ function get_row(lead_id) {
               })
               console.log(row.join(''))
             })
-          // leads.data._embedded.events.forEach(event => {
-          //   const d = new Date(event.created_at * 1000)
-          //   console.log(d.getSqlFormat() + ' ' + d.getHours() + ':' + d.getMinutes())
-          // })
         })
         .catch(e => console.log(e))
     })
