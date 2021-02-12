@@ -1,0 +1,25 @@
+{
+  "name": "cleverfood",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Lev Levin",
+  "license": "ISC",
+  "dependencies": {
+    "amocrm-js": "^2.0.8"
+  },
+  "devDependencies": {
+    "ngrok": "^3.4.0",
+    "nodemon": "^2.0.7"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "*.json"
+    ],
+    "delay": "2500"
+  }
+}
