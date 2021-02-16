@@ -1,46 +1,29 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
+// import fs from 'fs';
 import moment from 'moment';
+// import schedule from 'node-schedule';
+import _ from 'lodash';
 import connect from './connect.js';
 import pkg from './dataset.js';
 
 const {
-  initDate,
-  // todayDate,
-  // workDates,
+  // initDate,
+  todayDate,
+  workDates,
+  hlavni,
+  demo,
+  // zdrave,
+  finished,
 } = pkg;
 
 process.env.TZ = 'Europe/Prague';
 
-// const unixTimeToString = (ut) => moment(ut).format().slice(0, 10);
-const stringToUnixTime = (dateStr) => moment(dateStr).format('X');
-
+const unixTimeToString = (unixTime) => moment(unixTime).format().slice(0, 10);
+// const stringToUnixTime = (dateStr) => moment(dateStr).format('X');
+const sort = (array) => array.sort((a, b) => a - b);
 const crm = connect();
-
-const maxPageEntriesQty100 = 100;
-const maxPageEntriesQty250 = 5; // prod value: 250
-const firstDatabasePage = 1;
-
-const finished = 142;
-
-const hlavni = {
-  id: 3335653,
-  qlf: 33478963,
-  prod: 33479020,
-  hold: 33478966,
-};
-
-const zdrave = {
-  id: 1425106,
-  prod: 22328251,
-};
-
-const demo = {
-  id: 3332665,
-  qlf: 33458329,
-  prod: 33458332,
-};
 
 const statuses = [
   { pipeline_id: hlavni.id, status_id: finished },
@@ -52,98 +35,151 @@ const statuses = [
   { pipeline_id: demo.id, status_id: demo.prod },
 ];
 
-const leadList = [];
+const stageChangeQuery = {
+  leads_statuses: [
+    {
+      pipeline_id: hlavni.id,
+      status_id: hlavni.prod,
+    },
+    {
+      pipeline_id: demo.id,
+      status_id: demo.prod,
+    },
+    // {
+    //   pipeline_id: zdrave.id,
+    //   status_id: zdrave.prod,
+    // },
+  ],
+};
+const allTimeWokrDates = workDates();
+const firstDatabasePage = 1;
 
-const makeRow = async () => {
-  const result = {
-    customers: {},
-  };
-  const { customers } = result;
+const makeEventsList = async (leadsList) => {
+  console.log('makeEventsList FUNCTION is run \n');
+  console.log('makeEventsList args: ', leadsList);
+  const leadsStat = [];
 
-  leadList.forEach(async (lead) => {
-    const [leadId, createDate, closeDate] = lead;
-    await crm.request
-      .get(`/api/v4/leads/${leadId}`, {
-        with: 'contacts',
-      })
-      .then(({ data }) => {
-        const { _embedded } = data;
-        const { contacts } = _embedded;
-        const [{ id }] = contacts;
-        // console.log(id, leadId); // to ss-ll match
-        customers[id] = {
-          leads: {
-            [leadId]: {
-              initDates: [createDate, closeDate],
-              prodDates: [],
-            },
-          },
-        };
-        // console.log(JSON.stringify(result));
-      });
+  await leadsList.forEach(async (lead) => {
+    const [leadId] = lead;
+    const stageDatesStat = [];
 
     await crm.request
       .get('/api/v4/events', {
-        limit: maxPageEntriesQty100,
-        page: firstDatabasePage,
         filter: {
           entity: 'lead',
           entity_id: [leadId],
-          created_at: stringToUnixTime(initDate),
-          value_after: {
-            leads_statuses: [
-              {
-                pipeline_id: hlavni.id,
-                status_id: hlavni.prod,
-              },
-              {
-                pipeline_id: zdrave.id,
-                status_id: zdrave.prod,
-              },
-              {
-                pipeline_id: demo.id,
-                status_id: demo.prod,
-              },
-            ],
-          },
+          type: 'lead_status_changed',
+          value_after: stageChangeQuery,
         },
       })
-      .then(({ data }) => {
-        console.log('Вот пошел контент:', data._embedded);
-      });
+      .then(async ({ data }) => {
+        if (!data) return;
+        const { _embedded } = data;
+        const { events } = _embedded;
+        events.forEach((event) => stageDatesStat.push(event.created_at * 1000));
+
+        await crm.request
+          .get('/api/v4/events', {
+            filter: {
+              entity: 'lead',
+              entity_id: [leadId],
+              type: 'lead_status_changed',
+              value_before: stageChangeQuery,
+            },
+          })
+          .then(({ data: $data }) => {
+            if (!$data) return;
+            const { _embedded: $embedded } = $data;
+            const { events: $events } = $embedded;
+            $events.forEach((event) => stageDatesStat.push(event.created_at * 1000));
+            leadsStat.push([...lead, stageDatesStat]);
+          })
+          // .then(() => fs.writeFileSync('./eventsList.text', JSON.stringify(leadsStat), 'utf-8'))
+          // .then(() => console.log('File is written'))
+          .catch((error) => console.log(error));
+      })
+      .catch((error) => console.log(error));
   });
+  return leadsStat;
 };
 
-const iter = async (counter) => {
-  // if (counter === 2) return; // --> short stop / should be deleted in prod
-  let actualPageLength = 0;
+const normalizeDates = (leadsStat) => leadsStat.map(([lead, contact, dates]) => {
+  sort(dates);
+  const stringDates = dates.map((date) => unixTimeToString(date));
+  return [lead, contact, stringDates];
+});
+
+const buildWorkDates = (leadsStat) => {
+  console.log('buildWorkDates FUNCTION is run \n');
+  console.log('buildWorkDates args: ', leadsStat);
+  // const data = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
+  const dateNormalized = normalizeDates(leadsStat);
+  console.log('normalizeDates FUNCTION is finished \n');
+  console.log('normalizeDates return: ', dateNormalized);
+  const builded = dateNormalized.map(([lead, contact, dates]) => {
+    const workingDates = [];
+    const chunked = _.chunk(dates, 2);
+    let currentDate = '';
+    let lastDate = '';
+    chunked.forEach(([start, end]) => {
+      currentDate = start;
+      lastDate = moment(end).add(1, 'day').format().slice(0, 10);
+      do {
+        if (allTimeWokrDates.includes(currentDate)) {
+          workingDates.push(currentDate);
+        }
+        currentDate = moment(currentDate).add(1, 'day').format().slice(0, 10);
+      } while (currentDate !== lastDate && currentDate !== todayDate);
+    });
+    return [lead, contact, workingDates];
+  });
+  console.log('buildWorkDates FUNCTION is finished \n');
+  console.log('builded ADS: ', builded);
+  return builded;
+};
+
+const makeLeadsList = async (pageNum) => {
+  const leadsList = [];
   await crm.request
     .get('/api/v4/leads', {
-      limit: maxPageEntriesQty250,
-      page: counter,
+      page: pageNum,
+      limit: 250,
+      with: 'contacts',
       filter: {
         statuses,
       },
     })
     .then(({ data }) => {
+      if (!data) return;
       const { _embedded } = data;
       const { leads } = _embedded;
-      actualPageLength = leads.length;
       leads.forEach((lead) => {
-        leadList.push([
-          lead.id,
-          lead.created_at * 1000,
-          lead.closed_at * 1000,
-        ]);
-        // console.log(leadList);
+        const { _embedded: embedded } = lead;
+        const { contacts: contact } = embedded;
+        if (contact.length === 1) leadsList.push([lead.id, [contact[0].id]]);
+        if (contact.length > 1) {
+          const contactIds = contact.map((item) => item.id);
+          leadsList.push([lead.id, contactIds]);
+        }
       });
     })
-    .catch((e) => console.log(e));
-  if (counter < 2) iter(counter + 1); // --> short stop / should be deleted in prod
-  // if (actualPageLength === pageLimit250) iter(counter + 1); // uncommit for prod version
-  else {
-    makeRow();
-  }
+    .catch((error) => console.log('ERROR: ', error));
+  return leadsList; // delete in prod-version (short test stop)
+  // return leadsList.length // uncomment for prod-version
+  //   ? [...leadsList, ...(await makeLeadsList(pageNum + 1))] : []; // uncomment for prod-version
 };
 
-iter(firstDatabasePage);
+const run = async () => {
+  const leadsList = await makeLeadsList(firstDatabasePage);
+  const eventsList = await makeEventsList(leadsList);
+  const dataForUpload = await buildWorkDates(eventsList);
+};
+
+run();
+
+// const rule = new schedule.RecurrenceRule();
+// rule.dayOfWeek = [new schedule.Range(0, 5)]; // every Sunday - Friday, 10pm
+// rule.hour = 22;
+// rule.tz = 'Europe/Prague';
+
+// schedule.scheduleJob(rule, iter(firstDatabasePage));

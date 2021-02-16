@@ -2,6 +2,13 @@ import fs from 'fs';
 import AmoCRM from 'amocrm-js';
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
+import pkg from '../tokens/keys.js';
+
+const {
+  domain,
+  client_id,
+  client_secret,
+} = pkg;
 
 export default () => {
   if (!process.argv[2]) {
@@ -10,20 +17,18 @@ export default () => {
     process.exit(1);
   }
   
-  const redirectUri = process.argv[2];
-  
   const crm = new AmoCRM({
-    domain: 'infocleverfoodeu.amocrm.ru',
+    domain,
     auth: {
-      client_id: 'bec33e82-b66f-4200-b24c-db823c3d6b67',
-      client_secret: '1NIhLCyq6TlHjReedIO3CoSLgoQhjrAak847OYYnKYuc1YxShTUUZVSUIUjWAoGi',
-      redirect_uri: redirectUri,
+      client_id,
+      client_secret,
+      redirect_uri: process.argv[2],
       server: {
         port: 3001,
       },
     },
   });
-  
+
   try {
     const token = require('../tokens/token.json');
     const tokenIssued = require('../tokens/token_issued.json');
@@ -33,11 +38,11 @@ export default () => {
     const url = crm.connection.getAuthUrl();
     console.log(url);
   }
-
+  
   crm.on('connection:error', () => console.log('Ошибка соединения'));
   crm.on('connection:newToken', (newToken) => {
-    fs.writeFileSync('../tokens/token_issued.json', JSON.stringify({ date: new Date() }));
-    fs.writeFileSync('../tokens/token.json', JSON.stringify(newToken.data));
+    fs.writeFileSync('./tokens/token_issued.json', JSON.stringify({ date: new Date() }));
+    fs.writeFileSync('./tokens/token.json', JSON.stringify(newToken.data));
     console.log('  -> newToken');
   });
   return crm;

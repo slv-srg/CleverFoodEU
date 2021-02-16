@@ -25,8 +25,32 @@ const workDates = () => {
   return result;
 };
 
+const hlavni = {
+  id: 3335653,
+  qlf: 33478963,
+  prod: 33479020,
+  hold: 33478966,
+};
+
+const demo = {
+  id: 3332665,
+  qlf: 33458329,
+  prod: 33458332,
+};
+
+const zdrave = {
+  id: 1425106,
+  prod: 22328251,
+};
+
+const finished = 142;
+
 export default {
   initDate,
   todayDate,
   workDates,
+  hlavni,
+  demo,
+  zdrave,
+  finished,
 };
