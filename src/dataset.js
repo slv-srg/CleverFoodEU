@@ -1,6 +1,8 @@
 import moment from 'moment';
 
+const firstDatabasePage = 1;
 const initDate = '2020-05-05';
+const timecut = [12, 0];
 const todayDate = moment().format().slice(0, 10);
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
@@ -48,9 +50,12 @@ const finished = 142;
 export default {
   initDate,
   todayDate,
-  workDates,
+  workDays,
   hlavni,
   demo,
   zdrave,
   finished,
+  firstDatabasePage,
+  timecut,
+  workDates,
 };
