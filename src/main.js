@@ -3,16 +3,26 @@
 /* eslint-disable import/no-named-as-default-member */
 import _ from 'lodash';
 import moment from 'moment-timezone';
-import connect from './connect.js';
-import pkg from './dataset.js';
+import Mixpanel from 'mixpanel';
+import connect from '../src/connect.js';
+import pkg from '../src/dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
+
+const mixpanelToken = '67c595c651117fe419a943ecd35bb97a';
+const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a ';
+// const mixpanel = Mixpanel.init('67c595c651117fe419a943ecd35bb97a');
+const mixpanelImporter = Mixpanel.init(
+  mixpanelToken,
+  { secret: mixpanelSecret },
+);
 
 const {
   workDays,
   hlavni,
   demo,
   // zdrave,
+  funnels,
   finished,
   firstDatabasePage,
   startingTimecut,
@@ -215,9 +225,7 @@ const buildWorkDates = (chunked) => {
     const workDates = [];
     if (dateToString(newBegin) >= dateToString(end)) {
       if (dateToTime(end) > stoppingTimecut) {
-        // next directive with 'timecutsSpread' does filter the cases when
-        // vyroba was set up and cancel during some seconds or a couple of minutes
-        if (moment(end) - moment(begin) > timecutsSpread) { // link to 'begin' is correct
+        if (moment(end) - moment(begin) > timecutsSpread) { // link to 'begin' is correct!
           if (workDays.includes(dateToWeekday(newBegin))) {
             workDates.push(dateToString(newBegin));
           } else {
@@ -266,7 +274,6 @@ const addWorkDatesStats = (statsWithEvents) => {
     });
     lead.work_dates = workDates;
   });
-  // NEXT comment block does only print the result of this function
 
   // statsWithWorkDates.forEach((item) => {
   //   const { lead } = item;
@@ -278,6 +285,38 @@ const addWorkDatesStats = (statsWithEvents) => {
   return statsWithWorkDates;
 };
 
+const importUsers = async (collection, cb) => {
+  await collection.forEach(({ customer }) => {
+    const fullName = customer.last_name !== 'unknown'
+      ? `${customer.first_name} ${customer.last_name}`
+      : `${customer.first_name}`;
+
+    mixpanelImporter.people.set(fullName, {
+      distinct_id: customer.customer_id[0],
+      customer_id: customer.customer_id[0],
+      first_name: customer.first_name,
+      last_name: customer.last_name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+    });
+  });
+  cb();
+};
+
+const importEvents = async (collection, cb) => {
+  await collection.forEach(({ lead, customer }) => {
+    mixpanelImporter.import('vyroba', dateToString(lead.created_at), {
+      distinct_id: customer.customer_id[0],
+      lead_id: lead.lead_id,
+      status: lead.status_id,
+      pipeline: _.findKey(funnels, (item) => item.id === lead.pipeline_id),
+      production_dates: lead.work_dates,
+    });
+  });
+  cb();
+};
+
 const run = async () => {
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
@@ -286,8 +325,10 @@ const run = async () => {
   // console.log('RETURNED statsWithCustomers: ', statsWithCustomers);
   const statsWithEvents = await addEventsStats(statsWithCustomers);
   // console.log('RETURNED statsWithEvents: ', statsWithEvents);
-  const statsWithWorkDates = await addWorkDatesStats(statsWithEvents);
+  const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
   console.log('RETURNED statsWithWorkDates: ', statsWithWorkDates);
+  await importUsers(statsWithWorkDates, () => console.log('Import of Users to Mixpanel is done'));
+  await importEvents(statsWithWorkDates, () => console.log('Import of Events to Mixpanel is done'));
 };
 
 run();

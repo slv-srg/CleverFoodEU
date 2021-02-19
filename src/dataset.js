@@ -24,6 +24,12 @@ const zdrave = {
   prod: 22328251,
 };
 
+const funnels = {
+  hlavni,
+  demo,
+  zdrave,
+};
+
 const finished = 142;
 
 export default {
@@ -32,9 +38,12 @@ export default {
   hlavni,
   demo,
   zdrave,
+  funnels,
   finished,
   firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
   timecutsSpread,
 };
+
+console.log(funnels);
