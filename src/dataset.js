@@ -1,29 +1,10 @@
-import moment from 'moment';
-
+const firstDatabasePage = 5;
 const initDate = '2020-05-05';
-const todayDate = moment().format().slice(0, 10);
+const startingTimecut = '13:30';
+const stoppingTimecut = '12:30';
+const timecutsSpread = 300000; // 5 minutes
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
-
-const workDates = () => {
-  const result = [];
-
-  const iter = (date) => {
-    if (date > todayDate) return;
-    const weekday = moment(date).format('dddd');
-    if (workDays.includes(weekday)) {
-      result.push(date);
-    }
-    const nextDate = moment(date)
-      .add(1, 'days')
-      .format()
-      .slice(0, 10);
-    iter(nextDate);
-  };
-
-  iter(initDate);
-  return result;
-};
 
 const hlavni = {
   id: 3335653,
@@ -43,14 +24,26 @@ const zdrave = {
   prod: 22328251,
 };
 
+const funnels = {
+  hlavni,
+  demo,
+  zdrave,
+};
+
 const finished = 142;
 
 export default {
   initDate,
-  todayDate,
-  workDates,
+  workDays,
   hlavni,
   demo,
   zdrave,
+  funnels,
   finished,
+  firstDatabasePage,
+  startingTimecut,
+  stoppingTimecut,
+  timecutsSpread,
 };
+
+console.log(funnels);

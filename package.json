@@ -31,7 +31,9 @@
   "dependencies": {
     "amocrm-js": "^2.0.9",
     "lodash": "^4.17.20",
+    "mixpanel": "^0.13.0",
     "moment": "^2.29.1",
+    "moment-timezone": "^0.5.33",
     "node-schedule": "^2.0.0"
   }
 }
