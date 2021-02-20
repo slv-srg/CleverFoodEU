@@ -16,7 +16,7 @@ export default () => {
     console.log('Set redirect_uri in arguments!');
     process.exit(1);
   }
-  
+
   const crm = new AmoCRM({
     domain,
     auth: {
@@ -31,19 +31,19 @@ export default () => {
 
   try {
     const token = require('../tokens/token.json');
-    const tokenIssued = require('../tokens/token_issued.json');
-    crm.connection.setToken(token, tokenIssued);
+    crm.connection.setToken(token);
+    // crm.connection.refreshToken();
   } catch (e) {
-    console.log('Token file not found');
-    const url = crm.connection.getAuthUrl();
-    console.log(url);
+    console.log('Please open this URL in browser and confirm the access.');
+    console.log(crm.connection.getAuthUrl());
   }
-  
+
+  crm.on('connection:beforeRefreshToken', () => console.log('beforeRefreshToken'));
+
   crm.on('connection:error', () => console.log('Ошибка соединения'));
   crm.on('connection:newToken', (newToken) => {
-    fs.writeFileSync('./tokens/token_issued.json', JSON.stringify({ date: new Date() }));
+    console.log('connection:newToken')
     fs.writeFileSync('./tokens/token.json', JSON.stringify(newToken.data));
-    console.log('  -> newToken');
   });
   return crm;
 };

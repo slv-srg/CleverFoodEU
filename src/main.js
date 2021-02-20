@@ -10,10 +10,14 @@ import pkg from './dataset.js';
 moment.tz.setDefault('Europe/Prague');
 
 const mixpanelToken = '67c595c651117fe419a943ecd35bb97a';
-const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a ';
+const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
-  { secret: mixpanelSecret },
+  {
+    secret: mixpanelSecret,
+    debug: true,
+    verbose: true,
+  },
 );
 
 const {
@@ -70,6 +74,10 @@ const addLeadsStats = async (firstPageNum) => {
       },
     })
     .then(({ data }) => {
+      if (undefined !== data.status && data.status===401){
+        console.log(`${data.title}: ${data.detail}`);
+        process.exit(0)
+      }
       if (!data) return;
       const { _embedded } = data;
       const { leads } = _embedded;
@@ -351,6 +359,9 @@ const importEvents = (collection) => {
 };
 
 const run = async () => {
+  // Do it only once
+  // mixpanelImporter.track('Vyroba', {lead_id:0, pipeline:'', status:0})
+
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
