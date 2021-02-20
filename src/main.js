@@ -13,7 +13,11 @@ const mixpanelToken = '67c595c651117fe419a943ecd35bb97a';
 const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
-  { secret: mixpanelSecret },
+  {
+    secret: mixpanelSecret,
+    debug: true,
+    verbose: true,
+  },
 );
 
 const {
