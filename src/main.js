@@ -359,6 +359,9 @@ const importEvents = (collection) => {
 };
 
 const run = async () => {
+  // Do it only once
+  // mixpanelImporter.track('Vyroba', {lead_id:0, pipeline:'', status:0})
+
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
