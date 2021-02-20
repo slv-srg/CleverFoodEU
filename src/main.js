@@ -4,14 +4,13 @@
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
-import connect from '../src/connect.js';
-import pkg from '../src/dataset.js';
+import connect from './connect.js';
+import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
 const mixpanelToken = '67c595c651117fe419a943ecd35bb97a';
 const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a ';
-// const mixpanel = Mixpanel.init('67c595c651117fe419a943ecd35bb97a');
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   { secret: mixpanelSecret },
@@ -22,12 +21,13 @@ const {
   hlavni,
   demo,
   // zdrave,
+  contactsFieldsId,
   funnels,
   finished,
   firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
-  timecutsSpread,
+  timecutsGap,
 } = pkg;
 
 const stageChangeQuery = {
@@ -53,6 +53,7 @@ const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
 const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
 const dateToTime = (timestamp) => moment(timestamp).format('HH:mm');
 const datePlusOneDay = (timestamp) => moment(timestamp).add(1, 'day');
+const dateToTimestamp = (date) => moment(date).format('X') * 1000;
 
 const crm = connect();
 
@@ -62,7 +63,7 @@ const addLeadsStats = async (firstPageNum) => {
   await crm.request
     .get('/api/v4/leads', {
       page: firstPageNum,
-      limit: 30,
+      limit: 250,
       with: 'contacts',
       filter: {
         statuses,
@@ -140,13 +141,13 @@ const addCustomersStats = async (statsWithLeads) => {
           const { field_id: fieldId } = field;
           const [value] = field.values;
           switch (fieldId) {
-            case 265795:
+            case contactsFieldsId.email:
               customer.email = value.value;
               break;
-            case 265793:
+            case contactsFieldsId.phone:
               customer.phone = value.value;
               break;
-            case 470187:
+            case contactsFieldsId.address:
               customer.address = value.value;
               break;
             default:
@@ -166,7 +167,7 @@ const addEventsStats = async (statsWithCustomers) => {
   const returnResultAfterPause = (response) => new Promise((resolve) => {
     setTimeout(() => {
       resolve(_.filter(response, 'lead.event_dates'));
-    }, 25000);
+    }, 200000);
   });
 
   statsWithEvents.forEach(async (statItem) => {
@@ -225,7 +226,10 @@ const buildWorkDates = (chunked) => {
     const workDates = [];
     if (dateToString(newBegin) >= dateToString(end)) {
       if (dateToTime(end) > stoppingTimecut) {
-        if (moment(end) - moment(begin) > timecutsSpread) { // link to 'begin' is correct!
+        // next directive with 'timecutsGap' does excluded
+        //  the pair of the nearest events if
+        // there is less then 5 minutes gap between them
+        if (moment(end) - moment(begin) > timecutsGap) { // link to 'begin' is correct!
           if (workDays.includes(dateToWeekday(newBegin))) {
             workDates.push(dateToString(newBegin));
           } else {
@@ -235,7 +239,7 @@ const buildWorkDates = (chunked) => {
       } else {
         return workDates;
       }
-      // this directive fixes the problem of doubled last working dates
+      // this directive fixes the problem of doubled final working dates
       return workDates;
     }
     if (dateToString(newBegin) === dateToString(begin)) {
@@ -274,61 +278,87 @@ const addWorkDatesStats = (statsWithEvents) => {
     });
     lead.work_dates = workDates;
   });
-
-  // statsWithWorkDates.forEach((item) => {
-  //   const { lead } = item;
-  //   const { event_dates, work_dates } = lead;
-  //   console.log('lead id: ', lead.lead_id);
-  //   console.log('events dates: ', event_dates);
-  //   console.log('work dates: ', work_dates);
-  // });
   return statsWithWorkDates;
 };
 
-const importUsers = async (collection, cb) => {
-  await collection.forEach(({ customer }) => {
-    const fullName = customer.last_name !== 'unknown'
-      ? `${customer.first_name} ${customer.last_name}`
-      : `${customer.first_name}`;
+const customersUniquify = (collection) => {
+  const unifiedColl = [];
+  collection.forEach(({ lead, customer }) => {
+    const [createdAt] = lead.event_dates;
+    const [id] = customer.customer_id;
 
-    mixpanelImporter.people.set(fullName, {
-      distinct_id: customer.customer_id[0],
-      customer_id: customer.customer_id[0],
-      first_name: customer.first_name,
-      last_name: customer.last_name,
-      email: customer.email,
-      phone: customer.phone,
-      address: customer.address,
-    });
+    if (_.some(unifiedColl, ['id', id])) {
+      const foundCustomer = _.find(unifiedColl, ['id', id]);
+      if (foundCustomer.created_at > createdAt) {
+        foundCustomer.created_at = createdAt;
+      }
+    } else {
+      const name = customer.last_name !== 'unknown'
+        ? `${customer.first_name} ${customer.last_name}`
+        : `${customer.first_name}`;
+      unifiedColl.push(
+        {
+          id,
+          name,
+          email: customer.email,
+          phone: customer.phone,
+          created_at: dateToString(createdAt),
+        },
+      );
+    }
   });
-  cb();
+  return unifiedColl;
 };
 
-const importEvents = async (collection, cb) => {
-  await collection.forEach(({ lead, customer }) => {
-    mixpanelImporter.import('vyroba', dateToString(lead.created_at), {
-      distinct_id: customer.customer_id[0],
-      lead_id: lead.lead_id,
-      status: lead.status_id,
-      pipeline: _.findKey(funnels, (item) => item.id === lead.pipeline_id),
-      production_dates: lead.work_dates,
+const splitLeadsToEvents = (collection) => {
+  const splitedEvents = [];
+  collection.forEach(({ lead, customer }) => {
+    const { work_dates: dates } = lead;
+
+    dates.forEach((date) => {
+      splitedEvents.push({
+        event: 'Vyroba',
+        properties: {
+          distinct_id: customer.customer_id[0],
+          time: dateToTimestamp(date),
+          lead_id: lead.lead_id,
+          pipeline: _.findKey(funnels, (item) => item.id === lead.pipeline_id),
+          status: lead.status_id,
+        },
+      });
     });
   });
-  cb();
+  return splitedEvents;
+};
+
+const importUsers = (collection) => {
+  const unifiedColl = customersUniquify(collection);
+
+  unifiedColl.forEach((customer) => {
+    mixpanelImporter.people.set(customer.id, {
+      name: customer.name,
+      $email: customer.email,
+      $phone: customer.phone,
+      $created: customer.created_at,
+    });
+  });
+};
+
+const importEvents = (collection) => {
+  const splitedEvents = splitLeadsToEvents(collection);
+  // console.log('Events for import: ', splitedEvents);
+  mixpanelImporter.import_batch(splitedEvents);
 };
 
 const run = async () => {
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
-  // console.log('RETURNED statsWithLeads: ', statsWithLeads);
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
-  // console.log('RETURNED statsWithCustomers: ', statsWithCustomers);
   const statsWithEvents = await addEventsStats(statsWithCustomers);
-  // console.log('RETURNED statsWithEvents: ', statsWithEvents);
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
   console.log('RETURNED statsWithWorkDates: ', statsWithWorkDates);
-  await importUsers(statsWithWorkDates, () => console.log('Import of Users to Mixpanel is done'));
-  await importEvents(statsWithWorkDates, () => console.log('Import of Events to Mixpanel is done'));
+  importUsers(statsWithWorkDates);
+  importEvents(statsWithWorkDates);
 };
 
 run();

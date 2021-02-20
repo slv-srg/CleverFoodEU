@@ -1,8 +1,10 @@
+// Coolection of amoCRM system values
+
 const firstDatabasePage = 5;
 const initDate = '2020-05-05';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
-const timecutsSpread = 300000; // 5 minutes
+const timecutsGap = 300000; // 5 minutes
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
 
@@ -24,6 +26,12 @@ const zdrave = {
   prod: 22328251,
 };
 
+const contactsFieldsId = {
+  email: 265795,
+  phone: 265793,
+  address: 470187,
+};
+
 const funnels = {
   hlavni,
   demo,
@@ -38,12 +46,11 @@ export default {
   hlavni,
   demo,
   zdrave,
+  contactsFieldsId,
   funnels,
   finished,
   firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
-  timecutsSpread,
+  timecutsGap,
 };
-
-console.log(funnels);
