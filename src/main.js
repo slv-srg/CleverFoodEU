@@ -74,6 +74,10 @@ const addLeadsStats = async (firstPageNum) => {
       },
     })
     .then(({ data }) => {
+      if (undefined !== data.status && data.status===401){
+        console.log(`${data.title}: ${data.detail}`);
+        process.exit(0)
+      }
       if (!data) return;
       const { _embedded } = data;
       const { leads } = _embedded;
