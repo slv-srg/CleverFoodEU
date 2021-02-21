@@ -1,10 +1,10 @@
-// Coolection of amoCRM system values
+// Coolection of amoCRM business process values
 
 const firstDatabasePage = 5;
 const initDate = '2020-05-05';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
-const timecutsGap = 300000; // 5 minutes
+const eventsTimeGap = 300000; // 5 minutes
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
 
@@ -13,17 +13,20 @@ const hlavni = {
   qlf: 33478963,
   prod: 33479020,
   hold: 33478966,
+  finished: 142,
 };
 
 const demo = {
   id: 3332665,
   qlf: 33458329,
   prod: 33458332,
+  finished: 142,
 };
 
 const zdrave = {
   id: 1425106,
   prod: 22328251,
+  finished: 142,
 };
 
 const contactsFieldsId = {
@@ -52,5 +55,5 @@ export default {
   firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
-  timecutsGap,
+  eventsTimeGap,
 };

@@ -16,7 +16,7 @@ export default () => {
     console.log('Set redirect_uri in arguments!');
     process.exit(1);
   }
-
+  
   const crm = new AmoCRM({
     domain,
     auth: {
