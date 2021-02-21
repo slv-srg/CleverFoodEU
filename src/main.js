@@ -9,8 +9,8 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-const mixpanelToken = '67c595c651117fe419a943ecd35bb97a';
-const mixpanelSecret = 'deaab43cbab0087e61c43678aff0f84a';
+const mixpanelToken = '58fb55846efbb073ccaeeb7d8512f392';
+const mixpanelSecret = 'd6138ec5d2e33e1c609d9a28be4bf5f2';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
@@ -31,7 +31,7 @@ const {
   firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
-  timecutsGap,
+  eventsTimeGap,
 } = pkg;
 
 const stageChangeQuery = {
@@ -74,9 +74,9 @@ const addLeadsStats = async (firstPageNum) => {
       },
     })
     .then(({ data }) => {
-      if (undefined !== data.status && data.status===401){
+      if (data.status === 401) {
         console.log(`${data.title}: ${data.detail}`);
-        process.exit(0)
+        process.exit(0);
       }
       if (!data) return;
       const { _embedded } = data;
@@ -117,7 +117,7 @@ const addLeadsStats = async (firstPageNum) => {
         }
       });
     })
-    .catch((error) => console.log('ERROR: ', error));
+    .catch((error) => console.log('There is an Error: ', error));
   return statsWithLeads; // delete in prod-version (short test stop)
 
   // return statsWithLeads.length // uncomment for prod-version
@@ -175,7 +175,7 @@ const addEventsStats = async (statsWithCustomers) => {
   const returnResultAfterPause = (response) => new Promise((resolve) => {
     setTimeout(() => {
       resolve(_.filter(response, 'lead.event_dates'));
-    }, 200000);
+    }, 250000);
   });
 
   statsWithEvents.forEach(async (statItem) => {
@@ -234,10 +234,10 @@ const buildWorkDates = (chunked) => {
     const workDates = [];
     if (dateToString(newBegin) >= dateToString(end)) {
       if (dateToTime(end) > stoppingTimecut) {
-        // next directive with 'timecutsGap' does excluded
-        //  the pair of the nearest events if
+        // next directive with 'eventsTimeGap' does excluded
+        //  the pair of the two nearest events if
         // there is less then 5 minutes gap between them
-        if (moment(end) - moment(begin) > timecutsGap) { // link to 'begin' is correct!
+        if (moment(end) - moment(begin) > eventsTimeGap) { // link to 'begin' is correct!
           if (workDays.includes(dateToWeekday(newBegin))) {
             workDates.push(dateToString(newBegin));
           } else {
@@ -291,31 +291,44 @@ const addWorkDatesStats = (statsWithEvents) => {
 
 const customersUniquify = (collection) => {
   const unifiedColl = [];
+
   collection.forEach(({ lead, customer }) => {
-    const [createdAt] = lead.event_dates;
+    const lastProductionDate = _.last(lead.work_dates) || null;
     const [id] = customer.customer_id;
 
     if (_.some(unifiedColl, ['id', id])) {
       const foundCustomer = _.find(unifiedColl, ['id', id]);
-      if (foundCustomer.created_at > createdAt) {
-        foundCustomer.created_at = createdAt;
+      if (foundCustomer.last_date < lastProductionDate) {
+        foundCustomer.last_date = lastProductionDate;
       }
     } else {
-      const name = customer.last_name !== 'unknown'
-        ? `${customer.first_name} ${customer.last_name}`
-        : `${customer.first_name}`;
       unifiedColl.push(
         {
           id,
-          name,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
           email: customer.email,
           phone: customer.phone,
-          created_at: dateToString(createdAt),
+          last_date: lastProductionDate,
         },
       );
     }
   });
   return unifiedColl;
+};
+
+const importUsers = (collection) => {
+  const unifiedColl = customersUniquify(collection);
+  console.log(unifiedColl);
+  unifiedColl.forEach((customer) => {
+    mixpanelImporter.people.set(customer.id, {
+      $first_name: customer.first_name,
+      $last_name: customer.last_name,
+      $email: customer.email,
+      $phone: customer.phone,
+      _last_date: customer.last_date,
+    });
+  });
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -324,14 +337,18 @@ const splitLeadsToEvents = (collection) => {
     const { work_dates: dates } = lead;
 
     dates.forEach((date) => {
+      const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
+      const LeadStatus = _.head(_.flatten(_.filter(_.toPairs(funnels[pipeline]),
+        ([, value]) => value === lead.status_id)));
+
       splitedEvents.push({
         event: 'Vyroba',
         properties: {
           distinct_id: customer.customer_id[0],
           time: dateToTimestamp(date),
           lead_id: lead.lead_id,
-          pipeline: _.findKey(funnels, (item) => item.id === lead.pipeline_id),
-          status: lead.status_id,
+          pipeline,
+          lead_status: LeadStatus,
         },
       });
     });
@@ -339,35 +356,21 @@ const splitLeadsToEvents = (collection) => {
   return splitedEvents;
 };
 
-const importUsers = (collection) => {
-  const unifiedColl = customersUniquify(collection);
-
-  unifiedColl.forEach((customer) => {
-    mixpanelImporter.people.set(customer.id, {
-      name: customer.name,
-      $email: customer.email,
-      $phone: customer.phone,
-      $created: customer.created_at,
-    });
-  });
-};
-
 const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
-  // console.log('Events for import: ', splitedEvents);
   mixpanelImporter.import_batch(splitedEvents);
 };
 
 const run = async () => {
   // Do it only once
-  // mixpanelImporter.track('Vyroba', {lead_id:0, pipeline:'', status:0})
+  // mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
 
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
   const statsWithEvents = await addEventsStats(statsWithCustomers);
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('RETURNED statsWithWorkDates: ', statsWithWorkDates);
+  console.log('RETURNED statsWithLeads: ', statsWithWorkDates.length);
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };

@@ -1,5 +1,5 @@
 export default {
-  client_id: '__INSERT_AMOCRM_CLIENT_ID_HERE__',
-  client_secret: '__INSERT_AMOCRM_CLIENT_SECRET_HERE__',
-  domain: '__MY_DOMAIN__.amocrm.ru',
+  domain: 'infocleverfoodeu.amocrm.ru',
+  client_id: 'bec33e82-b66f-4200-b24c-db823c3d6b67',
+  client_secret: '1NIhLCyq6TlHjReedIO3CoSLgoQhjrAak847OYYnKYuc1YxShTUUZVSUIUjWAoGi',
 };
