@@ -9,8 +9,8 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-const mixpanelToken = '58fb55846efbb073ccaeeb7d8512f392';
-const mixpanelSecret = 'd6138ec5d2e33e1c609d9a28be4bf5f2';
+const mixpanelToken = '7b184de3a539712512c6fd88786acd5b';
+const mixpanelSecret = 'eebcc5471d10362bc9e5b53a6d82452c';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
@@ -78,43 +78,31 @@ const addLeadsStats = async (firstPageNum) => {
       if (data.status === 401) {
         console.log(`${data.title}: ${data.detail}`);
         process.exit(0);
-      };
+      }
       const { _embedded } = data;
       const { leads } = _embedded;
+
       leads.forEach((lead) => {
         const { _embedded: embedded } = lead;
         const { contacts: contact } = embedded;
-        if (contact.length === 1) {
-          statsWithLeads.push(
-            {
-              lead: {
-                lead_id: lead.id,
-                created_at: lead.created_at * 1000,
-                status_id: lead.status_id,
-                pipeline_id: lead.pipeline_id,
-              },
-              customer: {
-                customer_id: [contact[0].id],
-              },
+        let customerId = 0;
+        if (!contact.length) return;
+        if (contact.length === 1) customerId = [contact[0].id];
+        if (contact.length > 1) customerId = contact.map((item) => item.id);
+
+        statsWithLeads.push(
+          {
+            lead: {
+              lead_id: lead.id,
+              created_at: lead.created_at * 1000,
+              status_id: lead.status_id,
+              pipeline_id: lead.pipeline_id,
             },
-          );
-        }
-        if (contact.length > 1) {
-          const contactIds = contact.map((item) => item.id);
-          statsWithLeads.push(
-            {
-              lead: {
-                lead_id: lead.id,
-                created_at: lead.created_at * 1000,
-                status_id: lead.status_id,
-                pipeline_id: lead.pipeline_id,
-              },
-              customer: {
-                customer_id: contactIds,
-              },
+            customer: {
+              customer_id: customerId,
             },
-          );
-        }
+          },
+        );
       });
     })
     .catch((error) => console.log('There is an Error: ', error));
@@ -319,16 +307,21 @@ const customersUniquify = (collection) => {
 
 const importUsers = (collection) => {
   const unifiedColl = customersUniquify(collection);
-  console.log(unifiedColl);
   unifiedColl.forEach((customer) => {
+    const fullName = customer.last_name !== 'unknown'
+      ? `${customer.first_name} ${customer.last_name}`
+      : `${customer.first_name}`;
+
     mixpanelImporter.people.set(customer.id, {
       $first_name: customer.first_name,
       $last_name: customer.last_name,
+      _full_name: fullName,
       $email: customer.email,
       $phone: customer.phone,
       _last_date: customer.last_date,
     });
   });
+  console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -344,6 +337,7 @@ const splitLeadsToEvents = (collection) => {
       splitedEvents.push({
         event: 'Vyroba',
         properties: {
+          $insert_id: `${lead.lead_id}-${date}`, // uniq event id
           distinct_id: customer.customer_id[0],
           time: dateToTimestamp(date),
           lead_id: lead.lead_id,
@@ -358,6 +352,7 @@ const splitLeadsToEvents = (collection) => {
 
 const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
+  console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
 };
 
@@ -367,10 +362,13 @@ const run = async () => {
 
   const statsWithLeads = await addLeadsStats(firstDatabasePage);
   if (statsWithLeads.length === 0) return;
+  console.log('Stats With Leads: ', statsWithLeads.length, '\n');
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
+  console.log('Stats With Customers: ', statsWithCustomers.length, '\n');
   const statsWithEvents = await addEventsStats(statsWithCustomers);
+  console.log('Stats With Events: ', statsWithEvents.length, '\n');
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('RETURNED statsWithLeads: ', statsWithWorkDates.length);
+  console.log('Stats With WorkDates: ', statsWithWorkDates.length, '\n');
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
