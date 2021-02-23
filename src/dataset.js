@@ -1,6 +1,9 @@
 // Coolection of amoCRM business process values
 
-const firstDatabasePage = 5;
+const databasePage = 1;
+const pageLimit = 250;
+const timeout = pageLimit * 1000;
+// const timeout = pageLimit * 1000;
 const initDate = '2020-05-05';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
@@ -44,6 +47,9 @@ const funnels = {
 const finished = 142;
 
 export default {
+  databasePage,
+  pageLimit,
+  timeout,
   initDate,
   workDays,
   hlavni,
@@ -52,7 +58,6 @@ export default {
   contactsFieldsId,
   funnels,
   finished,
-  firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
   eventsTimeGap,

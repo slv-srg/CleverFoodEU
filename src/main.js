@@ -1,6 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
+// import fs from 'fs';
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
@@ -21,6 +22,9 @@ const mixpanelImporter = Mixpanel.init(
 );
 
 const {
+  databasePage,
+  pageLimit,
+  timeout,
   workDays,
   hlavni,
   demo,
@@ -28,7 +32,6 @@ const {
   contactsFieldsId,
   funnels,
   finished,
-  firstDatabasePage,
   startingTimecut,
   stoppingTimecut,
   eventsTimeGap,
@@ -52,6 +55,7 @@ const statuses = [
   { pipeline_id: demo.id, status_id: demo.prod },
 ];
 
+// const now = moment().format('YYYY-MM-DD');
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
 const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
@@ -67,7 +71,7 @@ const addLeadsStats = async (firstPageNum) => {
   await crm.request
     .get('/api/v4/leads', {
       page: firstPageNum,
-      limit: 250,
+      limit: pageLimit,
       with: 'contacts',
       filter: {
         statuses,
@@ -163,7 +167,7 @@ const addEventsStats = async (statsWithCustomers) => {
   const returnResultAfterPause = (response) => new Promise((resolve) => {
     setTimeout(() => {
       resolve(_.filter(response, 'lead.event_dates'));
-    }, 250000);
+    }, timeout);
   });
 
   statsWithEvents.forEach(async (statItem) => {
@@ -181,9 +185,11 @@ const addEventsStats = async (statsWithCustomers) => {
         },
       })
       .then(async ({ data }) => {
-        if (!data) return;
+        if (!data || !data._embedded) return;
+        console.log('data 1st cycle + lead_id: ', data, id);
         const { _embedded } = data;
         const { events } = _embedded;
+        console.log('events 1st cycle: ', events);
         events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
 
         await crm.request
@@ -196,10 +202,11 @@ const addEventsStats = async (statsWithCustomers) => {
             },
           })
           .then(({ data: $data }) => {
-            if (!$data || !$data._embedded) return;
-            const { _embedded: $embedded } = $data;
-            const { events: $events } = $embedded;
-            $events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
+            if ($data) {
+              const { _embedded: $embedded } = $data;
+              const { events: $events } = $embedded;
+              $events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
+            }
             lead.event_dates = datesStat;
           })
           .catch((error) => console.log(error));
@@ -307,12 +314,14 @@ const customersUniquify = (collection) => {
 
 const importUsers = (collection) => {
   const unifiedColl = customersUniquify(collection);
+
   unifiedColl.forEach((customer) => {
     const fullName = customer.last_name !== 'unknown'
       ? `${customer.first_name} ${customer.last_name}`
       : `${customer.first_name}`;
 
     mixpanelImporter.people.set(customer.id, {
+      _id: customer.id,
       $first_name: customer.first_name,
       $last_name: customer.last_name,
       _full_name: fullName,
@@ -322,6 +331,16 @@ const importUsers = (collection) => {
     });
   });
   console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
+
+  // ------ DUMP ------
+  // let csvUnifiedColl = 'id,first_name,last_name,email,phone,last_date\n';
+  // unifiedColl.forEach((item) => {
+  //   csvUnifiedColl += `${item.id},${item.first_name},${item.last_name},${item.email},${item.phone},${item.last_date}\n`;
+  // });
+  // fs.writeFile(`./temp/dump/users_page-${databasePage}_${now}.csv`, csvUnifiedColl, (error) => {
+  //   if (error) throw new Error(error);
+  //   console.log('Success with Users writing.');
+  // });
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -331,15 +350,22 @@ const splitLeadsToEvents = (collection) => {
 
     dates.forEach((date) => {
       const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
-      const LeadStatus = _.head(_.flatten(_.filter(_.toPairs(funnels[pipeline]),
-        ([, value]) => value === lead.status_id)));
+      const LeadStatus = _.head(
+        _.flatten(
+          _.filter(
+            _.toPairs(funnels[pipeline]),
+            ([, value]) => value === lead.status_id,
+          ),
+        ),
+      );
 
       splitedEvents.push({
         event: 'Vyroba',
         properties: {
           $insert_id: `${lead.lead_id}-${date}`, // uniq event id
           distinct_id: customer.customer_id[0],
-          time: dateToTimestamp(date),
+          // time: date, // test property
+          time: dateToTimestamp(date), // prod property
           lead_id: lead.lead_id,
           pipeline,
           lead_status: LeadStatus,
@@ -354,23 +380,31 @@ const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
+
+  // ------ DUMP ------
+  // let csvSplitedEvents = 'distinct_id,time,lead_id,pipeline,lead_status\n';
+  // splitedEvents.forEach(({ properties }) => {
+  //   csvSplitedEvents += `${properties.distinct_id},${properties.time},${properties.lead_id},${properties.pipeline},${properties.lead_status}\n`;
+  // });
+  // fs.writeFile(`./temp/dump/events_page-${databasePage}_${now}.csv`, csvSplitedEvents, (error) => {
+  //   if (error) throw new Error(error);
+  //   console.log('Success with Events writing.');
+  // });
 };
 
-const run = async () => {
+export default async () => {
   // Do it only once
   // mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
 
-  const statsWithLeads = await addLeadsStats(firstDatabasePage);
+  const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads: ', statsWithLeads.length, '\n');
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
   console.log('Stats With Customers: ', statsWithCustomers.length, '\n');
   const statsWithEvents = await addEventsStats(statsWithCustomers);
-  console.log('Stats With Events: ', statsWithEvents.length, '\n');
+  console.log('Stats With Events | length: ', statsWithEvents.length, '\n');
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
   console.log('Stats With WorkDates: ', statsWithWorkDates.length, '\n');
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
-
-run();
