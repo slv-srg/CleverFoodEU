@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
-// import fs from 'fs';
+import fs from 'fs';
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
@@ -10,8 +10,8 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-const mixpanelToken = '7b184de3a539712512c6fd88786acd5b';
-const mixpanelSecret = 'eebcc5471d10362bc9e5b53a6d82452c';
+const mixpanelToken = '5bb1e913b0b527d8cd6be589a85691c4';
+const mixpanelSecret = '9cbfeeb44ad772f5305c2de57942587f';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
@@ -32,6 +32,7 @@ const {
   contactsFieldsId,
   funnels,
   finished,
+  cornerCases,
   startingTimecut,
   stoppingTimecut,
   eventsTimeGap,
@@ -55,13 +56,13 @@ const statuses = [
   { pipeline_id: demo.id, status_id: demo.prod },
 ];
 
-// const now = moment().format('YYYY-MM-DD');
+const now = moment().format('YYYY-MM-DD');
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
 const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
 const dateToTime = (timestamp) => moment(timestamp).format('HH:mm');
 const datePlusOneDay = (timestamp) => moment(timestamp).add(1, 'day');
-const dateToTimestamp = (date) => moment(date).format('X') * 1000;
+const dateToTimestamp = (date) => Number(moment(date).format('X'));
 
 const crm = connect();
 
@@ -186,10 +187,8 @@ const addEventsStats = async (statsWithCustomers) => {
       })
       .then(async ({ data }) => {
         if (!data || !data._embedded) return;
-        console.log('data 1st cycle + lead_id: ', data, id);
         const { _embedded } = data;
         const { events } = _embedded;
-        console.log('events 1st cycle: ', events);
         events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
 
         await crm.request
@@ -269,11 +268,17 @@ const addWorkDatesStats = (statsWithEvents) => {
   const statsWithWorkDates = [...statsWithEvents];
 
   statsWithWorkDates.forEach((item) => {
-    const { lead } = item;
-    const { event_dates: events } = lead;
-    events.sort((a, b) => a - b);
-    const chunkedDates = _.chunk(events, 2);
     const workDates = [];
+    const chunkedDates = [];
+    const { lead } = item;
+    const { lead_id: id, event_dates: events } = lead;
+
+    if (_.has(cornerCases, id)) {
+      chunkedDates.push(..._.chunk(cornerCases[id], 2));
+    } else {
+      events.sort((a, b) => a - b);
+      chunkedDates.push(..._.chunk(events, 2));
+    }
 
     chunkedDates.forEach((chunked) => {
       const result = buildWorkDates(chunked);
@@ -350,14 +355,16 @@ const splitLeadsToEvents = (collection) => {
 
     dates.forEach((date) => {
       const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
-      const LeadStatus = _.head(
-        _.flatten(
-          _.filter(
-            _.toPairs(funnels[pipeline]),
-            ([, value]) => value === lead.status_id,
-          ),
-        ),
-      );
+
+      // ------ UNUSEFUL ------
+      // const LeadStatus = _.head(
+      //   _.flatten(
+      //     _.filter(
+      //       _.toPairs(funnels[pipeline]),
+      //       ([, value]) => value === lead.status_id,
+      //     ),
+      //   ),
+      // );
 
       splitedEvents.push({
         event: 'Vyroba',
@@ -365,10 +372,10 @@ const splitLeadsToEvents = (collection) => {
           $insert_id: `${lead.lead_id}-${date}`, // uniq event id
           distinct_id: customer.customer_id[0],
           // time: date, // test property
-          time: dateToTimestamp(date), // prod property
+          time: dateToTimestamp(`${date} ${startingTimecut}`), // prod property
           lead_id: lead.lead_id,
           pipeline,
-          lead_status: LeadStatus,
+          // lead_status: LeadStatus, // unuseful
         },
       });
     });
@@ -393,18 +400,23 @@ const importEvents = (collection) => {
 };
 
 export default async () => {
-  // Do it only once
-  // mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
+  if (databasePage === 1) {
+    mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
+  }
 
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads: ', statsWithLeads.length, '\n');
+
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
   console.log('Stats With Customers: ', statsWithCustomers.length, '\n');
+
   const statsWithEvents = await addEventsStats(statsWithCustomers);
   console.log('Stats With Events | length: ', statsWithEvents.length, '\n');
+
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
   console.log('Stats With WorkDates: ', statsWithWorkDates.length, '\n');
+
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
