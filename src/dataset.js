@@ -3,7 +3,7 @@ import moment from 'moment-timezone';
 moment.tz.setDefault('Europe/Prague');
 const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/Prague');
 
-// Coolection of amoCRM business process values
+// Coolection of amoCRM business process values, properties and constants
 
 const databasePage = 5;
 const pageLimit = 250;

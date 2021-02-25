@@ -10,8 +10,8 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-const mixpanelToken = '5bb1e913b0b527d8cd6be589a85691c4';
-const mixpanelSecret = '9cbfeeb44ad772f5305c2de57942587f';
+const mixpanelToken = '092a4db9c3585561a9e36deafa48ba75';
+const mixpanelSecret = 'a084920fb0d01f50dbc9b6ef76dd44b8';
 const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
@@ -111,11 +111,11 @@ const addLeadsStats = async (firstPageNum) => {
       });
     })
     .catch((error) => console.log('There is an Error: ', error));
-  return statsWithLeads; // delete in prod-version (short test stop)
+  // return statsWithLeads; // short test stop
 
-  // return statsWithLeads.length // uncomment for prod-version
-  //   ? [...statsWithLeads, ...(await addLeadsStats(firstPageNum + 1))] // uncomment
-  //   : []; // uncomment for prod-version
+  return statsWithLeads.length
+    ? [...statsWithLeads, ...(await addLeadsStats(firstPageNum + 1))]
+    : [];
 };
 
 const addCustomersStats = async (statsWithLeads) => {
@@ -228,9 +228,9 @@ const buildWorkDates = (chunked) => {
     const workDates = [];
     if (dateToString(newBegin) >= dateToString(end)) {
       if (dateToTime(end) > stoppingTimecut) {
-        // next directive with 'eventsTimeGap' does excluded
-        //  the pair of the two nearest events if
-        // there is less then 5 minutes gap between them
+        // next directive with 'eventsTimeGap' does exclude
+        // the pair of the two nearest events if
+        // there is less then 5 minutes gap between them (no fake events)
         if (moment(end) - moment(begin) > eventsTimeGap) { // link to 'begin' is correct!
           if (workDays.includes(dateToWeekday(newBegin))) {
             workDates.push(dateToString(newBegin));
@@ -337,15 +337,16 @@ const importUsers = (collection) => {
   });
   console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
 
-  // ------ DUMP ------
-  // let csvUnifiedColl = 'id,first_name,last_name,email,phone,last_date\n';
-  // unifiedColl.forEach((item) => {
-  //   csvUnifiedColl += `${item.id},${item.first_name},${item.last_name},${item.email},${item.phone},${item.last_date}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/users_page-${databasePage}_${now}.csv`, csvUnifiedColl, (error) => {
-  //   if (error) throw new Error(error);
-  //   console.log('Success with Users writing.');
-  // });
+  // ------ DUMP CREATION ------
+  let csvUnifiedColl = 'id,first_name,last_name,email,phone,last_date\n';
+  unifiedColl.forEach((item) => {
+    csvUnifiedColl += `${item.id},${item.first_name},
+     ${item.last_name},${item.email},${item.phone},${item.last_date}\n`;
+  });
+  fs.writeFile(`./temp/dump/users_page-${databasePage}_${now}.csv`, csvUnifiedColl, (error) => {
+    if (error) throw new Error(error);
+    console.log('Success with Users writing.');
+  });
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -356,26 +357,25 @@ const splitLeadsToEvents = (collection) => {
     dates.forEach((date) => {
       const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
 
-      // ------ UNUSEFUL ------
-      // const LeadStatus = _.head(
-      //   _.flatten(
-      //     _.filter(
-      //       _.toPairs(funnels[pipeline]),
-      //       ([, value]) => value === lead.status_id,
-      //     ),
-      //   ),
-      // );
+      const LeadStatus = _.head(
+        _.flatten(
+          _.filter(
+            _.toPairs(funnels[pipeline]),
+            ([, value]) => value === lead.status_id,
+          ),
+        ),
+      );
 
       splitedEvents.push({
         event: 'Vyroba',
         properties: {
-          $insert_id: `${lead.lead_id}-${date}`, // uniq event id
+          $insert_id: `${lead.lead_id}-${date}`,
           distinct_id: customer.customer_id[0],
-          // time: date, // test property
-          time: dateToTimestamp(`${date} ${startingTimecut}`), // prod property
+          // time: date, // human readable value specially for dump
+          time: dateToTimestamp(`${date} 00:01`),
           lead_id: lead.lead_id,
           pipeline,
-          // lead_status: LeadStatus, // unuseful
+          lead_status: LeadStatus,
         },
       });
     });
@@ -388,15 +388,18 @@ const importEvents = (collection) => {
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
 
-  // ------ DUMP ------
-  // let csvSplitedEvents = 'distinct_id,time,lead_id,pipeline,lead_status\n';
-  // splitedEvents.forEach(({ properties }) => {
-  //   csvSplitedEvents += `${properties.distinct_id},${properties.time},${properties.lead_id},${properties.pipeline},${properties.lead_status}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/events_page-${databasePage}_${now}.csv`, csvSplitedEvents, (error) => {
-  //   if (error) throw new Error(error);
-  //   console.log('Success with Events writing.');
-  // });
+  // ------ DUMP CREATION ------
+  let csvSplitedEvents = 'distinct_id,time,lead_id,pipeline,lead_status\n';
+  splitedEvents.forEach(({ properties }) => {
+    csvSplitedEvents += `${properties.distinct_id},${properties.time},
+      ${properties.lead_id},${properties.pipeline},${properties.lead_status}\n`;
+  });
+  fs.writeFile(`./temp/dump/events_page-${databasePage}_${now}.csv`,
+    csvSplitedEvents,
+    (error) => {
+      if (error) throw new Error(error);
+      console.log('Success with Events writing.');
+    });
 };
 
 export default async () => {
@@ -406,16 +409,16 @@ export default async () => {
 
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
-  console.log('Stats With Leads: ', statsWithLeads.length, '\n');
+  console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
 
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
-  console.log('Stats With Customers: ', statsWithCustomers.length, '\n');
+  console.log('Stats With Customers | length: ', statsWithCustomers.length, '\n');
 
   const statsWithEvents = await addEventsStats(statsWithCustomers);
   console.log('Stats With Events | length: ', statsWithEvents.length, '\n');
 
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('Stats With WorkDates: ', statsWithWorkDates.length, '\n');
+  console.log('Stats With WorkDates | length: ', statsWithWorkDates.length, '\n');
 
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
