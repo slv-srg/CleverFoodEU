@@ -10,6 +10,9 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
+// const mixpanelToken = '5df2e358a058db828d6807ca33ef1cb9'; // test
+// const mixpanelSecret = '8726c66ded5826d892b57090d3f15411'; // test
+
 const mixpanelToken = '092a4db9c3585561a9e36deafa48ba75'; // v. 6.02
 const mixpanelSecret = 'a084920fb0d01f50dbc9b6ef76dd44b8'; // v. 6.02
 const mixpanelImporter = Mixpanel.init(
@@ -25,6 +28,7 @@ const {
   databasePage,
   pageLimit,
   timeout,
+  dateForUpdate,
   workDays,
   hlavni,
   demo,
@@ -67,7 +71,7 @@ const dateToTimestamp = (date) => Number(moment(date).format('X'));
 const crm = connect();
 
 const addLeadsStats = async (pageNum) => {
-  console.log('addLeadsStats FUNCTION is run \n');
+  console.log(`addLeadsStats FUNCTION for page #${pageNum} is run \n`);
   const statsWithLeads = [];
   await crm.request
     .get('/api/v4/leads', {
@@ -111,7 +115,6 @@ const addLeadsStats = async (pageNum) => {
       });
     })
     .catch((error) => console.log('There is an Error: ', error));
-  // return statsWithLeads; // short test stop
 
   return statsWithLeads.length
     ? [...statsWithLeads, ...(await addLeadsStats(pageNum + 1))]
@@ -336,17 +339,6 @@ const importUsers = (collection) => {
     });
   });
   console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
-
-  // ------ DUMP CREATION ------
-  // let csvUnifiedColl = 'id,first_name,last_name,email,phone,last_date\n';
-  // unifiedColl.forEach((item) => {
-  //   csvUnifiedColl += `${item.id},${item.first_name},
-  //    ${item.last_name},${item.email},${item.phone},${item.last_date}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/users_page-${databasePage}_${now}.csv`, csvUnifiedColl, (error) => {
-  //   if (error) throw new Error(error);
-  //   console.log('Success with Users writing.');
-  // });
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -355,29 +347,21 @@ const splitLeadsToEvents = (collection) => {
     const { work_dates: dates } = lead;
 
     dates.forEach((date) => {
-      const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
+      if (date === dateForUpdate) {
+        const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
 
-      const LeadStatus = _.head(
-        _.flatten(
-          _.filter(
-            _.toPairs(funnels[pipeline]),
-            ([, value]) => value === lead.status_id,
-          ),
-        ),
-      );
-
-      splitedEvents.push({
-        event: 'Vyroba',
-        properties: {
-          $insert_id: `${lead.lead_id}-${date}`,
-          distinct_id: customer.customer_id[0],
-          // time: date, // human readable value specially for dump
-          time: dateToTimestamp(`${date} 00:01`),
-          lead_id: lead.lead_id,
-          pipeline,
-          lead_status: LeadStatus,
-        },
-      });
+        splitedEvents.push({
+          event: 'Vyroba',
+          properties: {
+            $insert_id: `${lead.lead_id}-${date}`,
+            distinct_id: customer.customer_id[0],
+            // time: date, // human readable value specially for dump
+            time: dateToTimestamp(`${date} 00:01`),
+            lead_id: lead.lead_id,
+            pipeline,
+          },
+        });
+      }
     });
   });
   return splitedEvents;
@@ -387,31 +371,17 @@ const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
-
-  // ------ DUMP CREATION ------
-  // let csvSplitedEvents = 'distinct_id,time,lead_id,pipeline,lead_status\n';
-  // splitedEvents.forEach(({ properties }) => {
-  //   csvSplitedEvents += `${properties.distinct_id},${properties.time},
-  //     ${properties.lead_id},${properties.pipeline},${properties.lead_status}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/events_page-${databasePage}_${now}.csv`,
-  //   csvSplitedEvents,
-  //   (error) => {
-  //     if (error) throw new Error(error);
-  //     console.log('Success with Events writing.');
-  //   });
 };
 
-export default async () => {
-  if (databasePage === 1) {
-    mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
-  }
-
+const run = async () => {
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
 
-  const statsWithCustomers = await addCustomersStats(statsWithLeads);
+  const statsWithOngoingLeads = _.filter(statsWithLeads, (item) => item.lead.status_id !== 142);
+  console.log(statsWithOngoingLeads.length);
+
+  const statsWithCustomers = await addCustomersStats(statsWithOngoingLeads);
   console.log('Stats With Customers | length: ', statsWithCustomers.length, '\n');
 
   const statsWithEvents = await addEventsStats(statsWithCustomers);
@@ -419,7 +389,9 @@ export default async () => {
 
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
   console.log('Stats With WorkDates | length: ', statsWithWorkDates.length, '\n');
-
+  console.log('Stats With WorkDates | result: ', statsWithWorkDates, '\n');
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
+
+run();
