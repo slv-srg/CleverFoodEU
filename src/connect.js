@@ -45,5 +45,6 @@ export default () => {
     console.log('connection:newToken')
     fs.writeFileSync('./tokens/token.json', JSON.stringify(newToken.data));
   });
+
   return crm;
 };

@@ -2,4 +2,4 @@ lint:
 	npx eslint . --fix
 
 run:
-	@node ./bin/run.js https://fe5b6cb27030.ngrok.io
+	@node ./bin/run.js https://81d2e94d279e.ngrok.io

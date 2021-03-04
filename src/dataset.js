@@ -5,13 +5,14 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 
 // Coolection of amoCRM business process values, properties and constants
 
-const databasePage = 5;
+const databasePage = 1;
 const pageLimit = 250;
-const timeout = pageLimit * 1000;
-const initDate = '2020-05-05';
+const timeout = 60000;
+const dateForUpdate = '2021-03-03';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
-const eventsTimeGap = 300000; // 5 minutes
+const eventsTimeGap = 300000;
+const daysToLossQty = 30;
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
 
@@ -40,6 +41,11 @@ const contactsFieldsId = {
   email: 265795,
   phone: 265793,
   address: 470187,
+};
+
+const leadsFieldsId = {
+  firstDeliveryDate: 351089,
+  lastDeliveryDate: 350869,
 };
 
 const funnels = {
@@ -101,16 +107,18 @@ export default {
   databasePage,
   pageLimit,
   timeout,
-  initDate,
+  dateForUpdate,
   workDays,
   hlavni,
   demo,
   zdrave,
   contactsFieldsId,
+  leadsFieldsId,
   funnels,
   finished,
   cornerCases,
   startingTimecut,
   stoppingTimecut,
   eventsTimeGap,
+  daysToLossQty,
 };
