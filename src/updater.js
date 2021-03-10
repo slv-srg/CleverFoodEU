@@ -10,8 +10,8 @@ import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-// const mixpanelToken = '5df2e358a058db828d6807ca33ef1cb9'; // test
-// const mixpanelSecret = '8726c66ded5826d892b57090d3f15411'; // test
+// const mixpanelToken = 'c02d7624334f36425b928573d5121eaa'; // test
+// const mixpanelSecret = 'b230b4397d49ba377ca387c39717d6c4'; // test
 
 const mixpanelToken = '092a4db9c3585561a9e36deafa48ba75'; // v. 6.02
 const mixpanelSecret = 'a084920fb0d01f50dbc9b6ef76dd44b8'; // v. 6.02

@@ -5,10 +5,11 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 
 // Coolection of amoCRM business process values, properties and constants
 
+const target = 'test'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
-const timeout = 60000;
-const dateForUpdate = '2021-03-03';
+const timeout = 1200000;
+const dateForUpdate = '2021-03-08';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
 const eventsTimeGap = 300000;
@@ -104,6 +105,7 @@ const cornerCases = {
 };
 
 export default {
+  target,
   databasePage,
   pageLimit,
   timeout,
