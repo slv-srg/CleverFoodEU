@@ -5,10 +5,11 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 
 // Coolection of amoCRM business process values, properties and constants
 
+const target = 'production'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
-const timeout = 60000;
-const dateForUpdate = '2021-03-03';
+const timeout = 120000; // 1 300 000
+const dateForUpdate = '2021-03-15';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
 const eventsTimeGap = 300000;
@@ -16,26 +17,32 @@ const daysToLossQty = 30;
 
 const workDays = ['Monday', 'Wednesday', 'Saturday'];
 
+const deals = {
+  id: 4050859,
+  full: 38417065,
+  demo: 38416765,
+  hold: 38622172,
+};
+
 const hlavni = {
   id: 3335653,
   qlf: 33478963,
   prod: 33479020,
   hold: 33478966,
-  finished: 142,
 };
 
 const demo = {
   id: 3332665,
   qlf: 33458329,
   prod: 33458332,
-  finished: 142,
 };
 
 const zdrave = {
   id: 1425106,
   prod: 22328251,
-  finished: 142,
 };
+
+const finished = 142;
 
 const contactsFieldsId = {
   email: 265795,
@@ -53,8 +60,6 @@ const funnels = {
   demo,
   zdrave,
 };
-
-const finished = 142;
 
 const cornerCases = {
   27314549: [
@@ -104,11 +109,13 @@ const cornerCases = {
 };
 
 export default {
+  target,
   databasePage,
   pageLimit,
   timeout,
   dateForUpdate,
   workDays,
+  deals,
   hlavni,
   demo,
   zdrave,
