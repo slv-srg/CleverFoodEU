@@ -5,34 +5,22 @@
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
+import mpTokens from '../tokens/mixpanel-tokens.js';
 import connect from './connect.js';
 import pkg from './dataset.js';
 
 moment.tz.setDefault('Europe/Prague');
 
-// const mixpanelToken = 'c02d7624334f36425b928573d5121eaa'; // test
-// const mixpanelSecret = 'b230b4397d49ba377ca387c39717d6c4'; // test
-
-const mixpanelToken = '092a4db9c3585561a9e36deafa48ba75'; // v. 6.02
-const mixpanelSecret = 'a084920fb0d01f50dbc9b6ef76dd44b8'; // v. 6.02
-const mixpanelImporter = Mixpanel.init(
-  mixpanelToken,
-  {
-    secret: mixpanelSecret,
-    debug: true,
-    verbose: true,
-  },
-);
-
 const {
+  target,
   databasePage,
   pageLimit,
   timeout,
   dateForUpdate,
   workDays,
-  hlavni,
-  demo,
-  // zdrave,
+  deals,
+  // hlavni,
+  // demo,
   contactsFieldsId,
   funnels,
   finished,
@@ -44,29 +32,46 @@ const {
 
 const stageChangeQuery = {
   leads_statuses: [
-    { pipeline_id: hlavni.id, status_id: hlavni.prod },
-    { pipeline_id: demo.id, status_id: demo.prod },
-    // { pipeline_id: zdrave.id, status_id: zdrave.prod },
+    { pipeline_id: deals.id, status_id: deals.full },
+    { pipeline_id: deals.id, status_id: deals.demo },
+    // { pipeline_id: hlavni.id, status_id: hlavni.prod },
+    // { pipeline_id: demo.id, status_id: demo.prod },
   ],
 };
 
 const statuses = [
-  { pipeline_id: hlavni.id, status_id: finished },
-  { pipeline_id: hlavni.id, status_id: hlavni.qlf },
-  { pipeline_id: hlavni.id, status_id: hlavni.prod },
-  { pipeline_id: hlavni.id, status_id: hlavni.hold },
-  { pipeline_id: demo.id, status_id: finished },
-  { pipeline_id: demo.id, status_id: demo.qlf },
-  { pipeline_id: demo.id, status_id: demo.prod },
+  { pipeline_id: deals.id, status_id: finished },
+  { pipeline_id: deals.id, status_id: deals.full },
+  { pipeline_id: deals.id, status_id: deals.demo },
+  { pipeline_id: deals.id, status_id: deals.hold },
+  // { pipeline_id: hlavni.id, status_id: finished },
+  // { pipeline_id: hlavni.id, status_id: hlavni.qlf },
+  // { pipeline_id: hlavni.id, status_id: hlavni.prod },
+  // { pipeline_id: hlavni.id, status_id: hlavni.hold },
+  // { pipeline_id: demo.id, status_id: finished },
+  // { pipeline_id: demo.id, status_id: demo.qlf },
+  // { pipeline_id: demo.id, status_id: demo.prod },
 ];
 
-const now = moment().format('YYYY-MM-DD');
+// const now = moment().format('YYYY-MM-DD');
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
 const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
 const dateToTime = (timestamp) => moment(timestamp).format('HH:mm');
 const datePlusOneDay = (timestamp) => moment(timestamp).add(1, 'day');
 const dateToTimestamp = (date) => Number(moment(date).format('X'));
+
+const mixpanelToken = mpTokens[`${target}`].token; // test
+const mixpanelSecret = mpTokens[`${target}`].secret; // test
+
+const mixpanelImporter = Mixpanel.init(
+  mixpanelToken,
+  {
+    secret: mixpanelSecret,
+    debug: true,
+    verbose: true,
+  },
+);
 
 const crm = connect();
 
@@ -378,10 +383,11 @@ const run = async () => {
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
 
-  const statsWithOngoingLeads = _.filter(statsWithLeads, (item) => item.lead.status_id !== 142);
-  console.log(statsWithOngoingLeads.length);
+  // const statsWithOngoingLeads = _.filter(statsWithLeads, (item) => item.lead.status_id !== 142);
+  // console.log('Stats With Ongoing Leads | length: ', statsWithOngoingLeads.length);
+  // console.log('Stats With Ongoing Leads: ', statsWithOngoingLeads);
 
-  const statsWithCustomers = await addCustomersStats(statsWithOngoingLeads);
+  const statsWithCustomers = await addCustomersStats(statsWithLeads);
   console.log('Stats With Customers | length: ', statsWithCustomers.length, '\n');
 
   const statsWithEvents = await addEventsStats(statsWithCustomers);
