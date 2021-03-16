@@ -5,10 +5,10 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 
 // Coolection of amoCRM business process values, properties and constants
 
-const target = 'test'; // choose Mixpanel DataBase: 'test' or 'production'
+const target = 'production'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
-const timeout = 1250000; // 1 300 000
+const timeout = 120000; // 1 300 000
 const dateForUpdate = '2021-03-15';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
@@ -22,7 +22,6 @@ const deals = {
   full: 38417065,
   demo: 38416765,
   hold: 38622172,
-  // finished: 142,
 };
 
 const hlavni = {
@@ -30,20 +29,17 @@ const hlavni = {
   qlf: 33478963,
   prod: 33479020,
   hold: 33478966,
-  // finished: 142,
 };
 
 const demo = {
   id: 3332665,
   qlf: 33458329,
   prod: 33458332,
-  // finished: 142,
 };
 
 const zdrave = {
   id: 1425106,
   prod: 22328251,
-  // finished: 142,
 };
 
 const finished = 142;
@@ -64,7 +60,6 @@ const funnels = {
   demo,
   zdrave,
 };
-
 
 const cornerCases = {
   27314549: [
