@@ -368,6 +368,8 @@ const importEvents = (collection) => {
 
 export default async () => {
 
+  await crm.connection.refreshToken();
+
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads | length: ', statsWithLeads.length);
