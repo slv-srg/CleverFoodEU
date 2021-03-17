@@ -367,7 +367,8 @@ const importEvents = (collection) => {
   mixpanelImporter.import_batch(splitedEvents);
 };
 
-const run = async () => {
+export default async () => {
+
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
   console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
@@ -384,5 +385,3 @@ const run = async () => {
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
-
-run();
