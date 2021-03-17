@@ -363,7 +363,6 @@ const splitLeadsToEvents = (collection) => {
 const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
-  console.log('Stats of Splited Events for Import: ', splitedEvents, '\n');
   mixpanelImporter.import_batch(splitedEvents);
 };
 
@@ -380,9 +379,11 @@ export default async () => {
   console.log('Stats With Events | length: ', statsWithEvents.length);
 
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('Stats With WorkDates | result: ', statsWithWorkDates, '\n');
   console.log('Stats With WorkDates | length: ', statsWithWorkDates.length);
 
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
+
+  // LOG full data set
+  // console.log('Stats With WorkDates | result: ', statsWithWorkDates, '\n');
 };
