@@ -64,7 +64,7 @@ const mixpanelImporter = Mixpanel.init(
 const crm = connect();
 
 const addLeadsStats = async (pageNum) => {
-  console.log(`addLeadsStats FUNCTION for page #${pageNum} is run \n`);
+  console.log(`addLeadsStats FUNCTION for page #${pageNum} is run`);
   const statsWithLeads = [];
   await crm.request
     .get('/api/v4/leads', {
@@ -371,17 +371,18 @@ export default async () => {
 
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
-  console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
+  console.log('Stats With Leads | length: ', statsWithLeads.length);
 
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
-  console.log('Stats With Customers | length: ', statsWithCustomers.length, '\n');
+  console.log('Stats With Customers | length: ', statsWithCustomers.length);
 
   const statsWithEvents = await addEventsStats(statsWithCustomers);
-  console.log('Stats With Events | length: ', statsWithEvents.length, '\n');
+  console.log('Stats With Events | length: ', statsWithEvents.length);
 
   const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('Stats With WorkDates | length: ', statsWithWorkDates.length, '\n');
   console.log('Stats With WorkDates | result: ', statsWithWorkDates, '\n');
+  console.log('Stats With WorkDates | length: ', statsWithWorkDates.length);
+
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
