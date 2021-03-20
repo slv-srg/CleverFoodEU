@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
-// import fs from 'fs';
+
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
@@ -40,15 +40,10 @@ const statuses = [
   { pipeline_id: deals.id, status_id: finished },
   { pipeline_id: deals.id, status_id: deals.full },
   { pipeline_id: deals.id, status_id: deals.demo },
+  { pipeline_id: deals.id, status_id: deals.full_prolong },
+  { pipeline_id: deals.id, status_id: deals.demo_prolong },
   { pipeline_id: deals.id, status_id: deals.hold },
 ];
-
-// const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
-// const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
-// const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
-// const dateToTime = (timestamp) => moment(timestamp).format('HH:mm');
-// const datePlusOneDay = (timestamp) => moment(timestamp).add(1, 'day');
-// const dateToTimestamp = (date) => Number(moment(date).format('X'));
 
 const mixpanelToken = mpTokens[`${target}`].token;
 const mixpanelSecret = mpTokens[`${target}`].secret;

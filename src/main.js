@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
-// import fs from 'fs';
+
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
@@ -43,6 +43,8 @@ const statuses = [
   { pipeline_id: deals.id, status_id: finished },
   { pipeline_id: deals.id, status_id: deals.full },
   { pipeline_id: deals.id, status_id: deals.demo },
+  { pipeline_id: deals.id, status_id: deals.full_prolong },
+  { pipeline_id: deals.id, status_id: deals.demo_prolong },
   { pipeline_id: deals.id, status_id: deals.hold },
   { pipeline_id: hlavni.id, status_id: finished },
   { pipeline_id: hlavni.id, status_id: hlavni.qlf },

@@ -8,8 +8,8 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 const target = 'production'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
-const timeout = 60000; // 1 300 000
-const dateForUpdate = '2021-03-17';
+const timeout = 120000; // 1500000
+const dateForUpdate = '2021-03-20';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
 const eventsTimeGap = 300000;
@@ -22,6 +22,8 @@ const deals = {
   full: 38417065,
   demo: 38416765,
   hold: 38622172,
+  full_prolong: 38417068,
+  demo_prolong: 38416768,
 };
 
 const hlavni = {
