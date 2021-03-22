@@ -1,4 +1,5 @@
 import moment from 'moment-timezone';
+import Dates from './Dates.js';
 
 moment.tz.setDefault('Europe/Prague');
 const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/Prague');
@@ -9,7 +10,7 @@ const target = 'production'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
 const timeout = 120000; // 1500000
-const dateForUpdate = '2021-03-20';
+const dateForUpdate = moment(Dates.now).subtract(1, 'days').format('YYYY-MM-DD');
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
 const eventsTimeGap = 300000;
