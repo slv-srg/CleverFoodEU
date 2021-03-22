@@ -1,0 +1,13 @@
+{
+  // "editor.minimap.enabled": false,
+  // "window.openFoldersInNewWindow": "on",
+  "diffEditor.ignoreTrimWhitespace": false,
+  "files.trimTrailingWhitespace": true,
+  // "javascript.updateImportsOnFileMove.enabled": "always",
+  // "workbench.editor.enablePreview": false,
+  // "workbench.list.openMode": "doubleClick",
+  // "window.openFilesInNewWindow": "default",
+  // "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  // "explorer.confirmDelete": false
+}

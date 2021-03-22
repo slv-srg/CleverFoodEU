@@ -1,10 +1,11 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable import/no-named-as-default */
 /* eslint-disable import/no-named-as-default-member */
-// import fs from 'fs';
+
 import _ from 'lodash';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
+import Dates from './Dates.js';
 import mpTokens from '../tokens/mixpanel-tokens.js';
 import connect from './connect.js';
 import pkg from './dataset.js';
@@ -39,15 +40,10 @@ const statuses = [
   { pipeline_id: deals.id, status_id: finished },
   { pipeline_id: deals.id, status_id: deals.full },
   { pipeline_id: deals.id, status_id: deals.demo },
+  { pipeline_id: deals.id, status_id: deals.full_prolong },
+  { pipeline_id: deals.id, status_id: deals.demo_prolong },
   { pipeline_id: deals.id, status_id: deals.hold },
 ];
-
-const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
-const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
-const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
-const dateToTime = (timestamp) => moment(timestamp).format('HH:mm');
-const datePlusOneDay = (timestamp) => moment(timestamp).add(1, 'day');
-const dateToTimestamp = (date) => Number(moment(date).format('X'));
 
 const mixpanelToken = mpTokens[`${target}`].token;
 const mixpanelSecret = mpTokens[`${target}`].secret;
@@ -217,19 +213,19 @@ const buildWorkDates = (chunked) => {
   if (chunked[1]) {
     [, end] = chunked;
   } else {
-    end = todayEndingTimestamp;
+    end = Dates.todayEndingTimestamp;
   }
 
   const iter = (newBegin) => {
     const workDates = [];
-    if (dateToString(newBegin) >= dateToString(end)) {
-      if (dateToTime(end) > stoppingTimecut) {
+    if (Dates.dateToString(newBegin) >= Dates.dateToString(end)) {
+      if (Dates.dateToTime(end) > stoppingTimecut) {
         // next directive with 'eventsTimeGap' does exclude
         // the pair of the two nearest events if
         // there is less then 5 minutes gap between them (no fake events)
         if (moment(end) - moment(begin) > eventsTimeGap) { // link to 'begin' is correct!
-          if (workDays.includes(dateToWeekday(newBegin))) {
-            workDates.push(dateToString(newBegin));
+          if (workDays.includes(Dates.dateToWeekday(newBegin))) {
+            workDates.push(Dates.dateToString(newBegin));
           } else {
             return workDates;
           }
@@ -240,18 +236,18 @@ const buildWorkDates = (chunked) => {
       // this directive fixes the problem of doubled final working dates
       return workDates;
     }
-    if (dateToString(newBegin) === dateToString(begin)) {
-      if (dateToTime(newBegin) < startingTimecut) {
-        if (workDays.includes(dateToWeekday(newBegin))) {
-          workDates.push(dateToString(newBegin));
+    if (Dates.dateToString(newBegin) === Dates.dateToString(begin)) {
+      if (Dates.dateToTime(newBegin) < startingTimecut) {
+        if (workDays.includes(Dates.dateToWeekday(newBegin))) {
+          workDates.push(Dates.dateToString(newBegin));
         }
       }
-    } else if (dateToString(newBegin) > dateToString(begin)) {
-      if (workDays.includes(dateToWeekday(newBegin))) {
-        workDates.push(dateToString(newBegin));
+    } else if (Dates.dateToString(newBegin) > Dates.dateToString(begin)) {
+      if (workDays.includes(Dates.dateToWeekday(newBegin))) {
+        workDates.push(Dates.dateToString(newBegin));
       }
     }
-    const nextNewBegin = datePlusOneDay(newBegin);
+    const nextNewBegin = Dates.datePlusOneDay(newBegin);
     return [...workDates, ...iter(nextNewBegin)];
   };
 
@@ -349,7 +345,7 @@ const splitLeadsToEvents = (collection) => {
             $insert_id: `${lead.lead_id}-${date}`,
             distinct_id: customer.customer_id[0],
             // time: date, // human readable value specially for dump
-            time: dateToTimestamp(`${date} 00:01`),
+            time: Dates.dateToTimestamp(`${date} 00:01`),
             lead_id: lead.lead_id,
             pipeline,
           },
