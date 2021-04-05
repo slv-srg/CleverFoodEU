@@ -1,5 +1,4 @@
 import moment from 'moment-timezone';
-import Dates from './Dates.js';
 
 moment.tz.setDefault('Europe/Prague');
 const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/Prague');
