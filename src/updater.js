@@ -17,7 +17,6 @@ const {
   databasePage,
   pageLimit,
   timeout,
-  dateForUpdate,
   workDays,
   deals,
   contactsFieldsId,
@@ -52,8 +51,8 @@ const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
     secret: mixpanelSecret,
-    debug: true,
-    verbose: true,
+    debug: false,
+    verbose: false,
   },
 );
 
@@ -207,13 +206,13 @@ const addEventsStats = async (statsWithCustomers) => {
   return returnResultAfterPause(statsWithEvents);
 };
 
-const buildWorkDates = (chunked) => {
+const buildWorkDates = (chunked, todayEndingTimestamp) => {
   const [begin] = chunked;
   let end = '';
   if (chunked[1]) {
     [, end] = chunked;
   } else {
-    end = Dates.todayEndingTimestamp;
+    end = todayEndingTimestamp;
   }
 
   const iter = (newBegin) => {
@@ -258,6 +257,7 @@ const buildWorkDates = (chunked) => {
 const addWorkDatesStats = (statsWithEvents) => {
   console.log('addWorkDatesStats FUNCTION is run \n');
   const statsWithWorkDates = [...statsWithEvents];
+  const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 
   statsWithWorkDates.forEach((item) => {
     const workDates = [];
@@ -273,7 +273,7 @@ const addWorkDatesStats = (statsWithEvents) => {
     }
 
     chunkedDates.forEach((chunked) => {
-      const result = buildWorkDates(chunked);
+      const result = buildWorkDates(chunked, todayEndingTimestamp);
       workDates.push(...result);
     });
     lead.work_dates = workDates;
@@ -330,7 +330,9 @@ const importUsers = (collection) => {
   console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
 };
 
-const splitLeadsToEvents = (collection) => {
+const splitLeadsToEvents = (collection, dateForUpdate) => {
+  console.log('splitLeadsToEvents for date: ', dateForUpdate);
+  console.log('Collection size: ', collection.length, '\n');
   const splitedEvents = [];
   collection.forEach(({ lead, customer }) => {
     const { work_dates: dates } = lead;
@@ -357,7 +359,7 @@ const splitLeadsToEvents = (collection) => {
 };
 
 const importEvents = (collection) => {
-  const splitedEvents = splitLeadsToEvents(collection);
+  const splitedEvents = splitLeadsToEvents(collection, moment().subtract(1, 'days').format('YYYY-MM-DD'));
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
 };
