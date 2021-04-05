@@ -51,8 +51,8 @@ const mixpanelImporter = Mixpanel.init(
   mixpanelToken,
   {
     secret: mixpanelSecret,
-    debug: true,
-    verbose: true,
+    debug: false,
+    verbose: false,
   },
 );
 
