@@ -206,13 +206,13 @@ const addEventsStats = async (statsWithCustomers) => {
   return returnResultAfterPause(statsWithEvents);
 };
 
-const buildWorkDates = (chunked) => {
+const buildWorkDates = (chunked, todayEndingTimestamp) => {
   const [begin] = chunked;
   let end = '';
   if (chunked[1]) {
     [, end] = chunked;
   } else {
-    end = Dates.todayEndingTimestamp;
+    end = todayEndingTimestamp;
   }
 
   const iter = (newBegin) => {
@@ -257,6 +257,7 @@ const buildWorkDates = (chunked) => {
 const addWorkDatesStats = (statsWithEvents) => {
   console.log('addWorkDatesStats FUNCTION is run \n');
   const statsWithWorkDates = [...statsWithEvents];
+  const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 
   statsWithWorkDates.forEach((item) => {
     const workDates = [];
@@ -272,7 +273,7 @@ const addWorkDatesStats = (statsWithEvents) => {
     }
 
     chunkedDates.forEach((chunked) => {
-      const result = buildWorkDates(chunked);
+      const result = buildWorkDates(chunked, todayEndingTimestamp);
       workDates.push(...result);
     });
     lead.work_dates = workDates;

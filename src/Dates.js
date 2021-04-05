@@ -3,6 +3,7 @@ import moment from 'moment';
 
 const now = moment().format('YYYY-MM-DD');
 
+// Определяем константу на старте. А нам нужно значение того дня в который запускается обработка
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 
 const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
