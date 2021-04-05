@@ -10,7 +10,6 @@ const target = 'production'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
 const timeout = 120000; // 1500000
-const dateForUpdate = moment(Dates.now).subtract(1, 'days').format('YYYY-MM-DD');
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';
 const eventsTimeGap = 300000;
@@ -117,7 +116,6 @@ export default {
   databasePage,
   pageLimit,
   timeout,
-  dateForUpdate,
   workDays,
   deals,
   hlavni,

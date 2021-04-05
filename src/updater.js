@@ -17,7 +17,6 @@ const {
   databasePage,
   pageLimit,
   timeout,
-  dateForUpdate,
   workDays,
   deals,
   contactsFieldsId,
@@ -330,7 +329,9 @@ const importUsers = (collection) => {
   console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
 };
 
-const splitLeadsToEvents = (collection) => {
+const splitLeadsToEvents = (collection, dateForUpdate) => {
+  console.log('splitLeadsToEvents for date: ', dateForUpdate);
+  console.log('Collection size: ', collection.length, '\n');
   const splitedEvents = [];
   collection.forEach(({ lead, customer }) => {
     const { work_dates: dates } = lead;
@@ -357,7 +358,7 @@ const splitLeadsToEvents = (collection) => {
 };
 
 const importEvents = (collection) => {
-  const splitedEvents = splitLeadsToEvents(collection);
+  const splitedEvents = splitLeadsToEvents(collection, moment().subtract(1, 'days').format('YYYY-MM-DD'));
   console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
   mixpanelImporter.import_batch(splitedEvents);
 };
