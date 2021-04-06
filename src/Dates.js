@@ -5,6 +5,8 @@ const now = moment().format('YYYY-MM-DD');
 
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 
+const makeMoment = (timestamp) => moment(timestamp);
+
 const dateToString = (timestamp) => moment(timestamp).format('YYYY-MM-DD');
 
 const dateToWeekday = (timestamp) => moment(timestamp).format('dddd');
@@ -37,6 +39,7 @@ const getWeekNumList = (arrayOfDates) => {
 export default {
   now,
   todayEndingTimestamp,
+  makeMoment,
   dateToString,
   dateToWeekday,
   dateToTime,
