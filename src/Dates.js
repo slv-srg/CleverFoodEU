@@ -1,8 +1,10 @@
 import _ from 'lodash';
 import moment from 'moment';
 
+// не подходит для регулярных запусков с помощью шедулера - потому что фиксирует дату на момент запуска скрипта
 const now = moment().format('YYYY-MM-DD');
 
+// Определяем константу на старте. А нам нужно значение того дня в который запускается обработка
 const todayEndingTimestamp = moment({ hour: 23, minute: 59, seconds: 59 }).format('X') * 1000;
 
 const makeMoment = (timestamp) => moment(timestamp);

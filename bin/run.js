@@ -1,14 +1,5 @@
-// import schedule from 'node-schedule';
-import run from '../src/main.js';
+import schedule from 'node-schedule';
+import run from '../src/updater.js';
 
-run();
-
-// or use regular scheduled launch below
-
-// const rule = new schedule.RecurrenceRule();
-// rule.dayOfWeek = [new schedule.Range(0, 5)]; // every Sunday - Friday, 10pm
-// rule.hour = 21;
-// rule.minute = 41;
-// rule.tz = 'Europe/Prague';
-
-// schedule.scheduleJob(rule, run);
+//  mon - wed - sat
+schedule.scheduleJob('11 4 * * 2,4,7', run);

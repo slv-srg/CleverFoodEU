@@ -11,20 +11,16 @@ const {
 } = pkg;
 
 export default () => {
-  if (!process.argv[2]) {
-    console.log(process.argv);
-    console.log('Set redirect_uri in arguments!');
-    process.exit(1);
-  }
+  const redirect_uri = !process.argv[2] ? 'https://cleverfood.reve.ru' : process.argv[2];
 
   const crm = new AmoCRM({
     domain,
     auth: {
       client_id,
       client_secret,
-      redirect_uri: process.argv[2],
+      redirect_uri: redirect_uri,
       server: {
-        port: 3001,
+        port: 3003,
       },
     },
   });

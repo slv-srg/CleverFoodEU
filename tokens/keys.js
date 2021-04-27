@@ -1,5 +1,5 @@
 export default {
   domain: 'infocleverfoodeu.amocrm.ru',
-  client_id: 'bec33e82-b66f-4200-b24c-db823c3d6b67',
-  client_secret: '1NIhLCyq6TlHjReedIO3CoSLgoQhjrAak847OYYnKYuc1YxShTUUZVSUIUjWAoGi',
+  client_id: '45f0dd1d-805c-43fa-a46a-145b50016dbf',
+  client_secret: 'eSuTgraT8s1wTiW2KtzxqMhrXf8W7MHM7nGEdbhlvUNZ2RjgHW0ujrEY4lqXcH67',
 };
