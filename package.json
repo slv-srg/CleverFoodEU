@@ -4,7 +4,7 @@
   "description": "Unloading and normalize of historical data from amoCRM",
   "main": "./bin/run.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "serve": "nodemon /home/sergey/Projects/Commercial_projects/CleverFoodEU/express/index.js"
   },
   "type": "module",
   "repository": {
@@ -31,6 +31,7 @@
   "dependencies": {
     "amocrm-js": "^2.0.9",
     "colors": "^1.4.0",
+    "express": "^4.17.1",
     "lodash": "^4.17.20",
     "mixpanel": "^0.13.0",
     "moment": "^2.29.1",

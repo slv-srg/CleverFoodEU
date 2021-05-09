@@ -253,6 +253,12 @@ const buildWorkDates = (chunked) => {
     end = Dates.todayEndingTimestamp;
   }
 
+  // terminal term
+  if (Dates.dateToString(begin) === Dates.dateToString(end)
+  && Dates.dateToTime(begin) > startingTimecut) {
+    return [];
+  }
+
   const iter = (newBegin) => {
     const workDates = [];
     if (Dates.dateToString(newBegin) >= Dates.dateToString(end)) {
@@ -288,6 +294,7 @@ const buildWorkDates = (chunked) => {
     return [...workDates, ...iter(nextNewBegin)];
   };
 
+  // execution
   const result = iter(begin);
   return result;
 };

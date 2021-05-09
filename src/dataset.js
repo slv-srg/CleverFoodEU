@@ -8,7 +8,7 @@ const timestamp = (date) => moment(moment(date).format('X') * 1000).tz('Europe/P
 const target = 'test'; // choose Mixpanel DataBase: 'test' or 'production'
 const databasePage = 1;
 const pageLimit = 250;
-const timeout = 250000; // 1500000
+const timeout = 30 * 60000; // 1 500 000
 const dateForUpdate = '2021-03-31';
 const startingTimecut = '13:30';
 const stoppingTimecut = '12:30';

@@ -3,8 +3,10 @@
 /* eslint-disable import/no-named-as-default-member */
 
 import _ from 'lodash';
+import fs from 'fs';
 import moment from 'moment-timezone';
 import Mixpanel from 'mixpanel';
+import colors from 'colors';
 import Dates from './Dates.js';
 import mpTokens from '../tokens/mixpanel-tokens.js';
 import connect from './connect.js';
@@ -24,7 +26,7 @@ const {
   contactsFieldsId,
   funnels,
   finished,
-  cornerCases,
+  lost,
   startingTimecut,
   stoppingTimecut,
   eventsTimeGap,
@@ -41,6 +43,7 @@ const stageChangeQuery = {
 
 const statuses = [
   { pipeline_id: deals.id, status_id: finished },
+  { pipeline_id: deals.id, status_id: lost },
   { pipeline_id: deals.id, status_id: deals.full },
   { pipeline_id: deals.id, status_id: deals.demo },
   { pipeline_id: deals.id, status_id: deals.full_prolong },
@@ -70,7 +73,7 @@ const mixpanelImporter = Mixpanel.init(
 const crm = connect();
 
 const addLeadsStats = async (pageNum) => {
-  console.log('addLeadsStats FUNCTION is run \n');
+  console.log(colors.bgMagenta.white(`addLeadsStats FUNCTION for page #${pageNum} is run \n`));
   const statsWithLeads = [];
   await crm.request
     .get('/api/v4/leads', {
@@ -84,7 +87,7 @@ const addLeadsStats = async (pageNum) => {
     .then(({ data }) => {
       if (!data) return;
       if (data.status === 401) {
-        console.log(`${data.title}: ${data.detail}`);
+        console.log(colors.bgMagenta.white(`${data.title}: ${data.detail}`));
         process.exit(0);
       }
       const { _embedded } = data;
@@ -113,8 +116,7 @@ const addLeadsStats = async (pageNum) => {
         );
       });
     })
-    .catch((error) => console.log('There is an Error: ', error));
-  // return statsWithLeads; // short test stop
+    .catch((error) => console.log(colors.bgMagenta.white('There is an Error: ', error)));
 
   return statsWithLeads.length
     ? [...statsWithLeads, ...(await addLeadsStats(pageNum + 1))]
@@ -122,7 +124,7 @@ const addLeadsStats = async (pageNum) => {
 };
 
 const addCustomersStats = async (statsWithLeads) => {
-  console.log('addCustomersStats FUNCTION is run \n');
+  console.log(colors.bgMagenta.white('addCustomersStats FUNCTION is run \n'));
   const statsWithCustomers = [...statsWithLeads];
   statsWithCustomers.forEach(async (item) => {
     const { customer } = item;
@@ -159,25 +161,27 @@ const addCustomersStats = async (statsWithLeads) => {
           }
         });
       })
-      .catch((error) => console.log('ERROR: ', error));
+      .catch((error) => console.log(colors.bgMagenta.white('ERROR: ', error)));
   });
   return statsWithCustomers;
 };
 
 const addEventsStats = async (statsWithCustomers) => {
-  console.log('addEventsStats FUNCTION is run \n');
+  console.log(colors.bgMagenta.white('addEventsStats FUNCTION is run \n'));
   const statsWithEvents = [...statsWithCustomers];
+  // const statsWithEvents = [...statsWithCustomers].slice(-30); // TEST Directive
 
   const returnResultAfterPause = (response) => new Promise((resolve) => {
     setTimeout(() => {
-      resolve(_.filter(response, 'lead.event_dates'));
+      resolve(_.filter(response, 'lead.events_beginning'));
     }, timeout);
   });
 
   statsWithEvents.forEach(async (statItem) => {
     const { lead } = statItem;
     const { lead_id: id } = lead;
-    const datesStat = [];
+    const eventsBeginning = [];
+    const eventsEnding = [];
 
     await crm.request
       .get('/api/v4/events', {
@@ -192,7 +196,10 @@ const addEventsStats = async (statsWithCustomers) => {
         if (!data || !data._embedded) return;
         const { _embedded } = data;
         const { events } = _embedded;
-        events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
+        events.forEach((event) => eventsBeginning.push(moment(event.created_at * 1000)));
+        // events.forEach((event) => eventsBeginning
+        //  .push(moment(event.created_at * 1000).tz('Europe/Prague')));
+        lead.events_beginning = [...eventsBeginning];
 
         await crm.request
           .get('/api/v4/events', {
@@ -207,9 +214,11 @@ const addEventsStats = async (statsWithCustomers) => {
             if ($data) {
               const { _embedded: $embedded } = $data;
               const { events: $events } = $embedded;
-              $events.forEach((event) => datesStat.push(moment(event.created_at * 1000).tz('Europe/Prague')));
+              $events.forEach((event) => eventsEnding.push(moment(event.created_at * 1000)));
+              // $events.forEach((event) => eventsEnding
+              //  .push(moment(event.created_at * 1000).tz('Europe/Prague')));
             }
-            lead.event_dates = datesStat;
+            lead.events_ending = [...eventsEnding];
           })
           .catch((error) => console.log(error));
       })
@@ -218,7 +227,38 @@ const addEventsStats = async (statsWithCustomers) => {
   return returnResultAfterPause(statsWithEvents);
 };
 
+const buildProdPeriods = (statsWithEvents) => {
+  console.log(colors.bgMagenta.white('buildProdPeriods FUNCTION is run \n'));
+  const statsWithBuildedProdPeriods = [...statsWithEvents];
+
+  statsWithBuildedProdPeriods.forEach((item) => {
+    const { lead } = item;
+    const { events_beginning: begin, events_ending: end } = lead;
+    const prodPeriods = [];
+    if (_.isEmpty(begin)) return;
+
+    begin.sort((a, b) => a - b);
+
+    if (_.isEmpty(end)) {
+      prodPeriods.push([_.head(begin)]);
+    } else {
+      end.sort((a, b) => a - b);
+      const timestampEnd = _.map(begin, (date) => Dates.dateToTimestamp(date));
+
+      begin.forEach((beginDate) => {
+        const sortedPlace = _.sortedIndexOf(timestampEnd, Dates.dateToTimestamp(beginDate));
+        const endingDate = _.get(end, `${sortedPlace}`);
+        prodPeriods.push(_.compact([beginDate, endingDate]));
+      });
+    }
+    lead.prodPeriods = [...prodPeriods];
+  });
+  return statsWithBuildedProdPeriods;
+};
+
 const buildWorkDates = (chunked) => {
+  if (_.isEmpty(chunked)) return [];
+
   const [begin] = chunked;
   let end = '';
   if (chunked[1]) {
@@ -227,8 +267,16 @@ const buildWorkDates = (chunked) => {
     end = Dates.todayEndingTimestamp;
   }
 
+  // terminal term
+  if (Dates.dateToString(begin) === Dates.dateToString(end)
+  && Dates.dateToTime(begin) > startingTimecut) {
+    return [];
+  }
+
   const iter = (newBegin) => {
     const workDates = [];
+    console.log('begin: ', Dates.dateToString(newBegin));
+    console.log('end: ', Dates.dateToString(end));
     if (Dates.dateToString(newBegin) >= Dates.dateToString(end)) {
       if (Dates.dateToTime(end) > stoppingTimecut) {
         // next directive with 'eventsTimeGap' does exclude
@@ -247,6 +295,7 @@ const buildWorkDates = (chunked) => {
       // this directive fixes the problem of doubled final working dates
       return workDates;
     }
+
     if (Dates.dateToString(newBegin) === Dates.dateToString(begin)) {
       if (Dates.dateToTime(newBegin) < startingTimecut) {
         if (workDays.includes(Dates.dateToWeekday(newBegin))) {
@@ -258,32 +307,26 @@ const buildWorkDates = (chunked) => {
         workDates.push(Dates.dateToString(newBegin));
       }
     }
+
     const nextNewBegin = Dates.datePlusOneDay(newBegin);
     return [...workDates, ...iter(nextNewBegin)];
   };
 
+  // execution
   const result = iter(begin);
   return result;
 };
 
-const addWorkDatesStats = (statsWithEvents) => {
-  console.log('addWorkDatesStats FUNCTION is run \n');
-  const statsWithWorkDates = [...statsWithEvents];
+const addWorkDatesStats = (statsWithBuildedProdPeriods) => {
+  console.log(colors.bgMagenta.white('addWorkDatesStats FUNCTION is run \n'));
+  const statsWithWorkDates = [...statsWithBuildedProdPeriods];
 
   statsWithWorkDates.forEach((item) => {
     const workDates = [];
-    const chunkedDates = [];
     const { lead } = item;
-    const { lead_id: id, event_dates: events } = lead;
+    const { prodPeriods } = lead;
 
-    if (_.has(cornerCases, id)) {
-      chunkedDates.push(..._.chunk(cornerCases[id], 2));
-    } else {
-      events.sort((a, b) => a - b);
-      chunkedDates.push(..._.chunk(events, 2));
-    }
-
-    chunkedDates.forEach((chunked) => {
+    prodPeriods.forEach((chunked) => {
       const result = buildWorkDates(chunked);
       workDates.push(...result);
     });
@@ -333,23 +376,12 @@ const importUsers = (collection) => {
       $first_name: customer.first_name,
       $last_name: customer.last_name,
       _full_name: fullName,
-      $email: customer.email,
-      $phone: customer.phone,
+      // $email: customer.email,
+      // $phone: customer.phone,
       _last_date: customer.last_date,
     });
   });
-  console.log('Stats of Users for Import: ', unifiedColl.length, '\n');
-
-  // ------ DUMP CREATION ------
-  // let csvUnifiedColl = 'id,first_name,last_name,email,phone,last_date\n';
-  // unifiedColl.forEach((item) => {
-  //   csvUnifiedColl += `${item.id},${item.first_name},
-  //    ${item.last_name},${item.email},${item.phone},${item.last_date}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/users_page-${databasePage}_${now}.csv`, csvUnifiedColl, (error) => {
-  //   if (error) throw new Error(error);
-  //   console.log('Success with Users writing.');
-  // });
+  console.log(colors.bgMagenta.white('Stats of Users for Import: ', unifiedColl.length, '\n'));
 };
 
 const splitLeadsToEvents = (collection) => {
@@ -360,15 +392,6 @@ const splitLeadsToEvents = (collection) => {
     dates.forEach((date) => {
       const pipeline = _.findKey(funnels, (item) => item.id === lead.pipeline_id);
 
-      const LeadStatus = _.head(
-        _.flatten(
-          _.filter(
-            _.toPairs(funnels[pipeline]),
-            ([, value]) => value === lead.status_id,
-          ),
-        ),
-      );
-
       splitedEvents.push({
         event: 'Vyroba',
         properties: {
@@ -378,7 +401,6 @@ const splitLeadsToEvents = (collection) => {
           time: Dates.dateToTimestamp(`${date} 00:01`),
           lead_id: lead.lead_id,
           pipeline,
-          lead_status: LeadStatus,
         },
       });
     });
@@ -388,41 +410,34 @@ const splitLeadsToEvents = (collection) => {
 
 const importEvents = (collection) => {
   const splitedEvents = splitLeadsToEvents(collection);
-  console.log('Stats of Splited Events for Import: ', splitedEvents.length, '\n');
+  console.log(colors.bgMagenta.white('Stats of Splited Events for Import: ', splitedEvents.length, '\n'));
   mixpanelImporter.import_batch(splitedEvents);
-
-  // ------ DUMP CREATION ------
-  // let csvSplitedEvents = 'distinct_id,time,lead_id,pipeline,lead_status\n';
-  // splitedEvents.forEach(({ properties }) => {
-  //   csvSplitedEvents += `${properties.distinct_id},${properties.time},
-  //     ${properties.lead_id},${properties.pipeline},${properties.lead_status}\n`;
-  // });
-  // fs.writeFile(`./temp/dump/events_page-${databasePage}_${now}.csv`,
-  //   csvSplitedEvents,
-  //   (error) => {
-  //     if (error) throw new Error(error);
-  //     console.log('Success with Events writing.');
-  //   });
 };
 
-export default async () => {
-  if (databasePage === 1) {
-    mixpanelImporter.track('Vyroba', { lead_id: 0, pipeline: '', status: 0 });
-  }
-
+const run = async () => {
   const statsWithLeads = await addLeadsStats(databasePage);
   if (statsWithLeads.length === 0) return;
-  console.log('Stats With Leads | length: ', statsWithLeads.length, '\n');
+  console.log(colors.bgMagenta.white('Stats With Leads | length: ', statsWithLeads.length, '\n'));
 
   const statsWithCustomers = await addCustomersStats(statsWithLeads);
-  console.log('Stats With Customers | length: ', statsWithCustomers.length, '\n');
+  console.log(colors.bgMagenta.white('Stats With Customers | length: ', statsWithCustomers.length, '\n'));
 
   const statsWithEvents = await addEventsStats(statsWithCustomers);
-  console.log('Stats With Events | length: ', statsWithEvents.length, '\n');
+  console.log(colors.bgMagenta.white('Stats With Events | length: ', statsWithEvents.length, '\n'));
 
-  const statsWithWorkDates = addWorkDatesStats(statsWithEvents);
-  console.log('Stats With WorkDates | length: ', statsWithWorkDates.length, '\n');
+  const statsWithBuildedProdPeriods = buildProdPeriods(statsWithEvents);
+  console.log(colors.bgMagenta.white('Stats With Builded ProdPeriods | length: ', statsWithBuildedProdPeriods.length, '\n'));
+
+  const statsWithWorkDates = addWorkDatesStats(statsWithBuildedProdPeriods);
+  console.log(colors.bgMagenta.white('Stats With WorkDates | length: ', statsWithWorkDates.length, '\n'));
+
+  fs.writeFile('./temp/dump/statsWithWorkDates.json', JSON.stringify(statsWithWorkDates), (error) => {
+    if (error) throw new Error(error);
+    console.log(colors.bgMagenta.white('statsWithWorkDates is successfully writing.', '\n'));
+  });
 
   importUsers(statsWithWorkDates);
   importEvents(statsWithWorkDates);
 };
+
+run();
